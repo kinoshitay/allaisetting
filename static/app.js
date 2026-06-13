@@ -88,10 +88,11 @@ function renderSettings() {
 
 function renderSkills() {
   const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所", "共有"], skills.map((skill) => [
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所", "元GitHub", "共有"], skills.map((skill) => [
     nameCell(skill.name, skill.path, skill.github_urls),
     conciseText(skill.meaning_ja || "", skill.name),
     sourceCell(skill.source),
+    githubCell(skill.github_urls),
     shareCell(skill),
   ]), true) : emptyHtml();
 
@@ -109,9 +110,10 @@ function renderMcp() {
       nameCell(server.name, item.path, server.github_urls || item.github_urls),
       conciseText(server.meaning_ja || "", server.name),
       sourceCell(server.install_source || item.source),
+      githubCell(server.github_urls || item.github_urls),
     ]);
   });
-  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明", "入っている場所"], rows, true) : emptyHtml();
+  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明", "入っている場所", "元GitHub"], rows, true) : emptyHtml();
 }
 
 function renderFiles() {
@@ -203,6 +205,11 @@ function conciseText(text, fallback) {
 
 function sourceCell(source) {
   return `<span class="source-label">${escapeHtml(sourceLabel(source))}</span>`;
+}
+
+function githubCell(urls) {
+  const url = preferredUrl(urls);
+  return url ? `<a class="source-link" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>` : `<span class="status-label">-</span>`;
 }
 
 function shareCell(skill) {

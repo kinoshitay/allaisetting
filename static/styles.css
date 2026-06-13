@@ -215,12 +215,12 @@ td {
 }
 
 td:first-child {
-  width: 24%;
+  width: 22%;
   padding-right: 22px;
 }
 
 td:last-child {
-  width: 16%;
+  width: 12%;
 }
 
 td code {
@@ -261,6 +261,22 @@ tr:last-child td {
 .name-link:hover code {
   background: #e6f2f6;
   color: var(--accent-strong);
+}
+
+.source-link {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  display: inline-flex;
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 3px 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.source-link:hover {
+  border-color: var(--accent);
 }
 
 .source-label {
