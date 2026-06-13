@@ -419,7 +419,7 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
 
 def report_to_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# AI Agent Environment Inventory",
+        "# All AI Setting Environment Inventory",
         "",
         f"- Generated: `{report.get('generated_at')}`",
         f"- Host: `{report['settings']['device'].get('hostname')}`",
@@ -480,7 +480,7 @@ def report_to_html(report: dict[str, Any]) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Agent Environment Inventory</title>
+  <title>All AI Setting Environment Inventory</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; line-height: 1.5; }}
     pre {{ white-space: pre-wrap; background: #f5f5f5; padding: 16px; border-radius: 8px; }}

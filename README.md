@@ -1,4 +1,4 @@
-# AI Agent Inventory
+# All AI Setting
 
 Claude Code / Codex のローカル設定、エージェントファイル、Skills、MCP 設定を一括で棚卸しする Python アプリです。
 
