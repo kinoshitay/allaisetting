@@ -21,6 +21,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .app-header {
@@ -35,7 +37,7 @@ body {
 
 .eyebrow {
   color: var(--accent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
   margin: 0 0 6px;
@@ -43,7 +45,7 @@ body {
 }
 
 h1 {
-  font-size: 30px;
+  font-size: 34px;
   line-height: 1.1;
   margin: 0;
 }
@@ -71,8 +73,8 @@ button,
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  min-height: 38px;
-  padding: 8px 12px;
+  min-height: 42px;
+  padding: 9px 14px;
   text-decoration: none;
 }
 
@@ -109,18 +111,18 @@ button:hover,
 }
 
 .metric {
-  padding: 16px;
+  padding: 18px;
 }
 
 .metric span {
   color: var(--muted);
   display: block;
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 8px;
 }
 
 .metric strong {
-  font-size: 26px;
+  font-size: 30px;
 }
 
 .toolbar {
@@ -136,9 +138,9 @@ input[type="search"] {
   border-radius: 8px;
   flex: 1;
   font: inherit;
-  min-height: 38px;
+  min-height: 42px;
   min-width: 240px;
-  padding: 8px 12px;
+  padding: 9px 12px;
 }
 
 .tabs {
@@ -176,7 +178,7 @@ input[type="search"] {
 .settings-card,
 .item {
   overflow: hidden;
-  padding: 14px;
+  padding: 18px;
 }
 
 .item-header {
@@ -188,7 +190,8 @@ input[type="search"] {
 
 .item h2,
 .settings-card h2 {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.35;
   margin: 0 0 8px;
   overflow-wrap: anywhere;
 }
@@ -196,7 +199,7 @@ input[type="search"] {
 .meta,
 .path {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
@@ -205,9 +208,10 @@ input[type="search"] {
   border-left: 3px solid var(--accent);
   border-radius: 6px;
   color: #253745;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.6;
   margin: 12px 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 .links {
@@ -221,7 +225,7 @@ input[type="search"] {
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--accent-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   padding: 5px 9px;
   text-decoration: none;
@@ -248,7 +252,8 @@ input[type="search"] {
 
 .server-meaning {
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .pill {
@@ -257,9 +262,9 @@ input[type="search"] {
   border-radius: 999px;
   color: var(--ok);
   display: inline-flex;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 5px 10px;
   white-space: nowrap;
 }
 
