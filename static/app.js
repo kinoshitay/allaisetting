@@ -88,7 +88,8 @@ function renderSettings() {
 
 function renderSkills() {
   const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.security_summary || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所", "診断", "元GitHub", "共有"], skills.map((skill) => [
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["No.", "Skill", "シンプルな説明", "入っている場所", "診断", "元GitHub", "共有"], skills.map((skill, index) => [
+    `<span class="row-number">${index + 1}</span>`,
     nameCell(skill.name, skill.path, skill.github_urls),
     conciseText(skill.meaning_ja || "", skill.name),
     sourceCell(skill.source),
@@ -176,7 +177,7 @@ async function shareSkill(path) {
 
 function sectionTable(title, headers, rows, rawHtml = false) {
   return `
-    <section class="table-section">
+    <section class="table-section ${tableClass(title)}">
       <h2>${escapeHtml(title)}</h2>
       <div class="table-wrap">
         <table>
@@ -190,6 +191,10 @@ function sectionTable(title, headers, rows, rawHtml = false) {
       </div>
     </section>
   `;
+}
+
+function tableClass(title) {
+  return `${String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-table`;
 }
 
 function nameCell(name, title, urls) {

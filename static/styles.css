@@ -219,6 +219,15 @@ td:first-child {
   padding-right: 22px;
 }
 
+.skills-table td:first-child {
+  width: 42px;
+}
+
+.skills-table td:nth-child(2) {
+  width: 20%;
+  padding-right: 18px;
+}
+
 td:last-child {
   width: 12%;
 }
@@ -231,6 +240,13 @@ td code {
   font-size: 13px;
   padding: 2px 6px;
   white-space: normal;
+}
+
+.row-number {
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 12px;
+  min-width: 24px;
 }
 
 tr:last-child td {
