@@ -336,6 +336,12 @@ def cleanup_reason(path: Path) -> str | None:
     return None
 
 
+def is_default_claude_marketplace_path(path: Path) -> bool:
+    parts = path.parts
+    marker = (".claude", "plugins", "marketplaces", "claude-plugins-official")
+    return any(tuple(parts[index : index + len(marker)]) == marker for index in range(len(parts) - len(marker) + 1))
+
+
 def scan_cleanup_candidates(workspace: Path) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     if not workspace.exists():
@@ -379,11 +385,15 @@ def iter_limited_files(root: Path, patterns: list[str]) -> list[Path]:
             for d in dirnames
             if not d.startswith(".git")
             and d not in {"node_modules", "__pycache__", ".venv", "venv", "Library", "Caches"}
+            and not is_default_claude_marketplace_path(current_path / d)
             and depth < MAX_SEARCH_DEPTH
         ]
         for filename in filenames:
+            path = current_path / filename
+            if is_default_claude_marketplace_path(path):
+                continue
             if any(fnmatch.fnmatch(filename, pattern) for pattern in patterns):
-                found.append(current_path / filename)
+                found.append(path)
     return sorted(set(found))
 
 

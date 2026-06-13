@@ -220,7 +220,7 @@ function sourceLabel(source) {
     "Claude": "Claude Code",
     "Claude Code plugin cache": "Claude Code",
     "Claude Code system": "Claude system",
-    "Claude Code marketplace": "Claude Marketplace",
+    "Claude Code marketplace": "Claude Marketplace（追加）",
     "Agents shared skills": "共有",
     "Workspace": "Workspace",
     "Other": "その他",
