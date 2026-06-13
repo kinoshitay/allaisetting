@@ -79,87 +79,54 @@ function renderSettings() {
   const env = settings.environment || {};
   const paths = settings.known_paths || [];
   panels.settings.innerHTML = `
-    <div class="settings-grid">
-      ${settingsCard("Device", keyValues(device))}
-      ${settingsCard("CLI Versions", versions.map((item) => `<p><strong>${escapeHtml(item.command)}</strong><br><span class="meta">${escapeHtml(item.version)}</span></p>`).join(""))}
-      ${settingsCard("Known Paths", paths.map((item) => `<p><span class="pill ${item.exists ? "" : "warn"}">${item.exists ? "exists" : "missing"}</span> <span class="path">${escapeHtml(item.path)}</span></p>`).join(""))}
-      ${settingsCard("Environment", keyValues(env))}
-    </div>
+    ${sectionTable("Device", ["Key", "Value"], Object.entries(device).map(([key, value]) => [key, String(value)]))}
+    ${sectionTable("CLI Versions", ["Command", "Version"], versions.map((item) => [item.command, item.version]))}
+    ${sectionTable("Known Paths", ["Status", "Path"], paths.map((item) => [item.exists ? "exists" : "missing", item.path]))}
+    ${sectionTable("Environment", ["Key", "Value"], Object.entries(env).map(([key, value]) => [key, String(value)]))}
   `;
 }
 
 function renderSkills() {
   const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? skills.map((skill) => `
-    <article class="item">
-      <div class="item-header">
-        <div>
-          <h2>${escapeHtml(skill.name)}</h2>
-          <div class="path">${escapeHtml(skill.path)}</div>
-        </div>
-        <span class="pill">${escapeHtml(skill.source)}</span>
-      </div>
-      ${skill.meaning_ja ? `<p class="meaning">${escapeHtml(skill.meaning_ja)}</p>` : ""}
-      ${linksHtml(skill.github_urls)}
-      ${skill.error ? `<p class="meta">${escapeHtml(skill.error)}</p>` : ""}
-    </article>
-  `).join("") : emptyHtml();
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["スキル", "種別", "概要", "GitHub"], skills.map((skill) => [
+    `<strong>${escapeHtml(skill.name)}</strong><div class="path">${escapeHtml(skill.path)}</div>`,
+    skill.source,
+    skill.meaning_ja || "",
+    linkCell(skill.github_urls),
+  ]), true) : emptyHtml();
 }
 
 function renderMcp() {
   const mcp = filterItems(state.report.mcp || [], (item) => `${item.path} ${item.meaning_ja || ""} ${JSON.stringify(item.servers || [])} ${(item.github_urls || []).join(" ")}`);
-  panels.mcp.innerHTML = mcp.length ? mcp.map((item) => {
-    const servers = item.servers && item.servers.length
-      ? item.servers.map((server) => `
-          <div class="server-row">
-            <span class="pill">${escapeHtml(server.name)}</span>
-            ${server.meaning_ja ? `<span class="server-meaning">${escapeHtml(server.meaning_ja)}</span>` : ""}
-            ${linksHtml(uniqueUrls(server.github_urls))}
-          </div>
-        `).join("")
-      : `<span class="pill warn">No names detected</span>`;
-    return `
-      <article class="item">
-        <h2>${escapeHtml(item.path)}</h2>
-        ${item.meaning_ja ? `<p class="meaning">${escapeHtml(item.meaning_ja)}</p>` : ""}
-        <div class="server-list">${servers}</div>
-      </article>
-    `;
-  }).join("") : emptyHtml();
+  const rows = mcp.flatMap((item) => {
+    const servers = item.servers && item.servers.length ? item.servers : [{ name: "-", meaning_ja: "MCPサーバー名を検出できませんでした。", github_urls: item.github_urls }];
+    return servers.map((server) => [
+      `<strong>${escapeHtml(item.path)}</strong><div class="meta">${escapeHtml(item.meaning_ja || "MCP設定ファイルです。")}</div>`,
+      `<span class="pill">${escapeHtml(server.name)}</span>`,
+      server.meaning_ja || "",
+      linkCell(server.github_urls || item.github_urls),
+    ]);
+  });
+  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["設定ファイル", "サーバー", "概要", "GitHub"], rows, true) : emptyHtml();
 }
 
 function renderFiles() {
   const files = filterItems(state.report.context_files || [], (item) => `${item.path} ${item.category} ${item.meaning_ja || ""} ${item.preview || ""} ${(item.github_urls || []).join(" ")}`);
-  panels.files.innerHTML = files.length ? files.map((item) => `
-    <article class="item">
-      <div class="item-header">
-        <div>
-          <h2>${escapeHtml(item.path)}</h2>
-          <div class="meta">${escapeHtml(item.category)} · ${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>
-        </div>
-        <span class="pill">${escapeHtml(item.exists ? "found" : "missing")}</span>
-      </div>
-      ${item.meaning_ja ? `<p class="meaning">${escapeHtml(item.meaning_ja)}</p>` : ""}
-      ${linksHtml(item.github_urls)}
-      ${item.error ? `<p class="meta">${escapeHtml(item.error)}</p>` : ""}
-    </article>
-  `).join("") : emptyHtml();
+  panels.files.innerHTML = files.length ? sectionTable("Files", ["ファイル", "種別", "概要", "GitHub"], files.map((item) => [
+    `<strong>${escapeHtml(item.path)}</strong><div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>`,
+    item.category,
+    item.meaning_ja || "",
+    linkCell(item.github_urls),
+  ]), true) : emptyHtml();
 }
 
 function renderCleanup() {
   const candidates = filterItems(state.report.cleanup_candidates || [], (item) => `${item.path} ${item.reason || ""}`);
-  panels.cleanup.innerHTML = candidates.length ? candidates.map((item) => `
-    <article class="item">
-      <div class="item-header">
-        <div>
-          <h2>${escapeHtml(item.path)}</h2>
-          <div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>
-        </div>
-        <button class="danger-button" type="button" data-quarantine-path="${escapeAttribute(item.path)}">Quarantine</button>
-      </div>
-      <p class="meaning">${escapeHtml(item.reason || "隔離候補です。")}</p>
-    </article>
-  `).join("") : `<div class="empty">No cleanup candidates.</div>`;
+  panels.cleanup.innerHTML = candidates.length ? sectionTable("Cleanup", ["ファイル", "理由", "操作"], candidates.map((item) => [
+    `<strong>${escapeHtml(item.path)}</strong><div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>`,
+    item.reason || "隔離候補です。",
+    `<button class="danger-button" type="button" data-quarantine-path="${escapeAttribute(item.path)}">Quarantine</button>`,
+  ]), true) : `<div class="empty">No cleanup candidates.</div>`;
 
   panels.cleanup.querySelectorAll("[data-quarantine-path]").forEach((button) => {
     button.addEventListener("click", () => quarantinePath(button.dataset.quarantinePath));
@@ -184,15 +151,22 @@ async function quarantinePath(path) {
   scan();
 }
 
-function settingsCard(title, body) {
-  return `<article class="settings-card"><h2>${title}</h2>${body || `<p class="meta">No data.</p>`}</article>`;
-}
-
-function keyValues(object) {
-  return `<dl class="kv">${Object.entries(object).map(([key, value]) => `
-    <dt>${escapeHtml(key)}</dt>
-    <dd>${escapeHtml(String(value))}</dd>
-  `).join("")}</dl>`;
+function sectionTable(title, headers, rows, rawHtml = false) {
+  return `
+    <section class="table-section">
+      <h2>${escapeHtml(title)}</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `<tr>${row.map((cell) => `<td>${rawHtml ? cell : escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
 }
 
 function linksHtml(urls) {
@@ -200,6 +174,11 @@ function linksHtml(urls) {
   const url = preferredUrl(urls);
   if (!url) return "";
   return `<div class="links"><a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a></div>`;
+}
+
+function linkCell(urls) {
+  const url = preferredUrl(urls);
+  return url ? `<a class="table-link" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>` : "";
 }
 
 function uniqueUrls(urls) {
