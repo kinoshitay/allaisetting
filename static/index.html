@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Agent Inventory</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Local scanner</p>
+      <h1>AI Agent Inventory</h1>
+    </div>
+    <div class="actions">
+      <button id="scanButton" type="button">Scan</button>
+      <a href="/export.json">JSON</a>
+      <a href="/export.md">Markdown</a>
+      <a href="/export.html">HTML</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary-grid" id="summary"></section>
+
+    <section class="toolbar">
+      <input id="filterInput" type="search" placeholder="Filter paths, skills, MCP servers">
+      <label>
+        <input id="previewToggle" type="checkbox" checked>
+        Include previews
+      </label>
+    </section>
+
+    <section class="tabs" aria-label="Inventory sections">
+      <button class="tab active" type="button" data-tab="settings">Settings</button>
+      <button class="tab" type="button" data-tab="skills">Skills</button>
+      <button class="tab" type="button" data-tab="mcp">MCP</button>
+      <button class="tab" type="button" data-tab="files">Files</button>
+    </section>
+
+    <section id="settingsPanel" class="panel active"></section>
+    <section id="skillsPanel" class="panel"></section>
+    <section id="mcpPanel" class="panel"></section>
+    <section id="filesPanel" class="panel"></section>
+  </main>
+
+  <template id="emptyTemplate">
+    <div class="empty">No matching items.</div>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>
