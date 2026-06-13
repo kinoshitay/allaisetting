@@ -197,11 +197,18 @@ function keyValues(object) {
 
 function linksHtml(urls) {
   if (!urls || !urls.length) return "";
-  return `<div class="links">${uniqueUrls(urls).map((url) => `<a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>`).join("")}</div>`;
+  const url = preferredUrl(urls);
+  if (!url) return "";
+  return `<div class="links"><a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a></div>`;
 }
 
 function uniqueUrls(urls) {
   return [...new Set((urls || []).filter(Boolean))];
+}
+
+function preferredUrl(urls) {
+  const unique = uniqueUrls(urls);
+  return unique.find((url) => url.includes("/tree/")) || unique[0] || "";
 }
 
 function filterItems(items, stringify) {

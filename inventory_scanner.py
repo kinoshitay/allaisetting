@@ -79,6 +79,41 @@ KNOWN_GITHUB_REPOS = {
 GITHUB_URL_RE = re.compile(r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[^\s\"'<>)]*)?")
 GITHUB_REPO_RE = re.compile(r"\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)\b")
 
+SERVICE_MEANINGS_JA = {
+    "asana": "Asana はタスク・プロジェクト管理サービスです。",
+    "canva": "Canva はデザイン作成サービスです。",
+    "circleback": "Circleback は会議メモや文字起こしを扱うサービスです。",
+    "cloudflare-api": "Cloudflare はDNS、CDN、Workersなどのインフラ管理サービスです。",
+    "computer-use": "Computer Use は画面操作をエージェントに任せるためのローカル連携です。",
+    "context7": "Context7 はライブラリやAPIドキュメントを参照するためのサービスです。",
+    "discord": "Discord はチャット・コミュニティ管理サービスです。",
+    "edinetdb": "EDINETDB は日本企業の開示・財務情報を調べるためのサービスです。",
+    "fakechat": "Fakechat はチャット連携のテストやデモ用サービスです。",
+    "firebase": "Firebase はGoogleのアプリ開発・ホスティング基盤です。",
+    "freee": "freee は会計・人事労務などの業務管理サービスです。",
+    "freee-mcp": "freee は会計・人事労務などの業務管理サービスです。",
+    "freee-sign-mcp": "freeeサインは電子契約・署名管理サービスです。",
+    "github": "GitHub はコード管理、Issue、Pull Requestを扱う開発プラットフォームです。",
+    "gitlab": "GitLab はコード管理、CI/CD、Issueを扱う開発プラットフォームです。",
+    "gmo-coin": "GMOコインは暗号資産取引サービスです。",
+    "greptile": "Greptile はコードベースの検索やレビューを支援するサービスです。",
+    "imessage": "iMessage はAppleのメッセージ送受信サービスです。",
+    "laravel-boost": "Laravel Boost はLaravel開発を支援するツールです。",
+    "linear": "Linear はIssue、ロードマップ、開発プロジェクトを管理するサービスです。",
+    "mf-mcp": "Money Forward は会計・請求・経費などの業務管理サービスです。",
+    "node_repl": "Node REPL はJavaScript実行やブラウザ操作を補助するローカルツールです。",
+    "notion": "Notion はドキュメント、Wiki、データベースを管理するサービスです。",
+    "openai-api-key-local-confirmation": "OpenAI APIキーのローカル確認に使う補助ツールです。",
+    "playwright": "Playwright はブラウザ自動操作・テストのためのツールです。",
+    "seisakudb": "seisakudb は政策・政治関連情報を調べるためのサービスです。",
+    "serena": "Serena はコード理解や編集を支援する開発エージェント用ツールです。",
+    "slack_mcp": "Slack はチームチャット、チャンネル、メッセージを扱うサービスです。",
+    "telegram": "Telegram はメッセージングサービスです。",
+    "terraform": "Terraform はクラウドやインフラ構成を管理するツールです。",
+    "woodstock": "Woodstock は投資・金融関連の情報や操作を扱うサービスです。",
+    "xcodebuildmcp": "Xcode Build MCP はiOS/macOSアプリのビルドやシミュレーター操作を支援するツールです。",
+}
+
 
 @dataclass
 class ScanOptions:
@@ -174,18 +209,21 @@ def summarize_skill_japanese(name: str, source: str, description: str) -> str:
 
 
 def summarize_mcp_japanese(server_name: str, source: str) -> str:
-    transport = "TOML 設定" if source == "toml" else "JSON 設定"
-    return f"`{server_name}` をエージェントの外部ツールとして接続する MCP 設定です。{transport}から検出され、API やローカルコマンドを呼び出せるようにします。"
+    key = server_name.lower()
+    service = SERVICE_MEANINGS_JA.get(key)
+    if service:
+        return f"{service} MCP経由でエージェントから使えるようにする接続です。"
+    return f"`{server_name}` をエージェントから使えるようにするMCP接続です。"
 
 
 def summarize_context_file_japanese(category: str) -> str:
     if category == "agent/context":
-        return "エージェントへの常設指示ファイルです。この環境での作業方針、コマンド、注意点を Claude Code / Codex に伝えます。"
+        return "エージェントへの常設指示ファイルです。"
     if category == "mcp":
-        return "MCP サーバーの接続設定ファイルです。外部サービスやローカルツールをエージェントから使えるようにします。"
+        return "MCP設定ファイルです。"
     if category == "settings":
-        return "Claude Code / Codex / プラグインの動作設定です。有効なプラグイン、MCP、承認モードなどの意味があります。"
-    return "この環境を理解するための補助コンテキストです。エージェントが作業時に参照する可能性があります。"
+        return "Claude Code / Codex / プラグインの設定ファイルです。"
+    return "エージェントが参照する補助ファイルです。"
 
 
 def command_version(command: str) -> dict[str, str]:
