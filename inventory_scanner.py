@@ -279,6 +279,14 @@ def summarize_mcp_japanese(server_name: str, source: str) -> str:
     return f"{server_name} のMCP接続です。"
 
 
+def summarize_inferred_mcp_japanese(server_name: str) -> str:
+    key = server_name.lower()
+    service = SERVICE_MEANINGS_JA.get(key)
+    if service:
+        return service
+    return f"{server_name} のMCP関連設定です。"
+
+
 def summarize_context_file_japanese(category: str) -> str:
     if category == "agent/context":
         return "エージェントへの常設指示ファイルです。"
@@ -531,6 +539,41 @@ def extract_mcp_servers_from_text(text: str) -> list[dict[str, str]]:
     return list(servers.values())
 
 
+def infer_mcp_server_from_path(path: str, text: str) -> dict[str, str]:
+    lower_blob = f"{path}\n{text}".lower()
+    service_matches = [name for name in SERVICE_MEANINGS_JA if name in lower_blob]
+    if service_matches:
+        name = sorted(service_matches, key=len, reverse=True)[0]
+        return {"name": name, "source": "inferred"}
+
+    path_obj = Path(path)
+    candidates = [path_obj.stem, path_obj.parent.name, *reversed(path_obj.parts)]
+    ignored = {
+        "",
+        ".claude",
+        ".codex",
+        ".agents",
+        ".config",
+        ".changeset",
+        "config",
+        "settings",
+        "plugins",
+        "cache",
+        "marketplaces",
+        "external_plugins",
+        "mcp",
+        "mcpservers",
+    }
+    for candidate in candidates:
+        normalized = re.sub(r"\.mcp$", "", candidate.lower())
+        normalized = re.sub(r"[_-]?mcp[_-]?$", "", normalized)
+        normalized = re.sub(r"^mcp[_-]?", "", normalized)
+        normalized = normalized.strip("._- ")
+        if normalized and normalized not in ignored and not re.fullmatch(r"\d+(?:\.\d+)*", normalized):
+            return {"name": normalized, "source": "inferred"}
+    return {"name": "mcp-config", "source": "inferred"}
+
+
 def scan_mcp(context_files: list[dict[str, Any]], workspace: Path) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     home = Path.home()
@@ -542,14 +585,21 @@ def scan_mcp(context_files: list[dict[str, Any]], workspace: Path) -> list[dict[
             parse_text, _ = safe_read_text(Path(path))
         if not parse_text or ("mcp" not in path.lower() and "mcp" not in parse_text.lower()):
             continue
+        servers = extract_mcp_servers_from_text(parse_text)
+        if not servers:
+            servers = [infer_mcp_server_from_path(path, parse_text)]
         servers = [
             {
                 **server,
-                "meaning_ja": summarize_mcp_japanese(server["name"], server.get("source", "")),
+                "meaning_ja": (
+                    summarize_inferred_mcp_japanese(server["name"])
+                    if server.get("source") == "inferred"
+                    else summarize_mcp_japanese(server["name"], server.get("source", ""))
+                ),
                 "github_urls": public_github_links(path, parse_text),
                 "install_source": mcp_source(path, home, workspace),
             }
-            for server in extract_mcp_servers_from_text(parse_text)
+            for server in servers
         ]
         items.append(
             {

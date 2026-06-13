@@ -103,7 +103,8 @@ function renderSkills() {
 function renderMcp() {
   const mcp = filterItems(state.report.mcp || [], (item) => `${item.path} ${item.source || ""} ${item.meaning_ja || ""} ${JSON.stringify(item.servers || [])} ${(item.github_urls || []).join(" ")}`);
   const rows = mcp.flatMap((item) => {
-    const servers = item.servers && item.servers.length ? item.servers : [{ name: "-", meaning_ja: "MCPサーバー名を検出できませんでした。", github_urls: item.github_urls }];
+    const fallbackName = shortName(item.path).replace(/\.mcp\.json$|\.json$|\.toml$/i, "") || "mcp-config";
+    const servers = item.servers && item.servers.length ? item.servers : [{ name: fallbackName, meaning_ja: `${fallbackName} のMCP関連設定です。`, github_urls: item.github_urls }];
     return servers.map((server) => [
       nameCell(server.name, item.path, server.github_urls || item.github_urls),
       conciseText(server.meaning_ja || "", server.name),
