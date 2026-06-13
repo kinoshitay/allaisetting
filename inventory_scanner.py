@@ -531,8 +531,9 @@ def extract_mcp_servers_from_text(text: str) -> list[dict[str, str]]:
     return list(servers.values())
 
 
-def scan_mcp(context_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def scan_mcp(context_files: list[dict[str, Any]], workspace: Path) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
+    home = Path.home()
     for file_item in context_files:
         preview = file_item.get("preview")
         path = file_item.get("path", "")
@@ -546,12 +547,14 @@ def scan_mcp(context_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 **server,
                 "meaning_ja": summarize_mcp_japanese(server["name"], server.get("source", "")),
                 "github_urls": public_github_links(path, parse_text),
+                "install_source": mcp_source(path, home, workspace),
             }
             for server in extract_mcp_servers_from_text(parse_text)
         ]
         items.append(
             {
                 "path": path,
+                "source": mcp_source(path, home, workspace),
                 "servers": servers,
                 "preview": preview,
                 "meaning_ja": summarize_context_file_japanese("mcp"),
@@ -559,6 +562,19 @@ def scan_mcp(context_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return items
+
+
+def mcp_source(path: str | Path, home: Path, workspace: Path) -> str:
+    as_text = str(path)
+    if f"{home}/.codex" in as_text:
+        return "Codex"
+    if f"{home}/.claude" in as_text:
+        return "Claude Code"
+    if f"{home}/.agents" in as_text:
+        return "Agents shared skills"
+    if str(path).startswith(str(workspace)):
+        return "Workspace"
+    return "Other"
 
 
 def scan_important_settings(options: ScanOptions, home: Path) -> dict[str, Any]:
@@ -597,7 +613,7 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
         "settings": scan_important_settings(options, home),
         "context_files": context_files,
         "skills": scan_skills(home),
-        "mcp": scan_mcp(context_files),
+        "mcp": scan_mcp(context_files, ws),
         "cleanup_candidates": scan_cleanup_candidates(ws),
     }
     report["summary"] = {

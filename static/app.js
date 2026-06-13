@@ -101,15 +101,16 @@ function renderSkills() {
 }
 
 function renderMcp() {
-  const mcp = filterItems(state.report.mcp || [], (item) => `${item.path} ${item.meaning_ja || ""} ${JSON.stringify(item.servers || [])} ${(item.github_urls || []).join(" ")}`);
+  const mcp = filterItems(state.report.mcp || [], (item) => `${item.path} ${item.source || ""} ${item.meaning_ja || ""} ${JSON.stringify(item.servers || [])} ${(item.github_urls || []).join(" ")}`);
   const rows = mcp.flatMap((item) => {
     const servers = item.servers && item.servers.length ? item.servers : [{ name: "-", meaning_ja: "MCPサーバー名を検出できませんでした。", github_urls: item.github_urls }];
     return servers.map((server) => [
       nameCell(server.name, item.path, server.github_urls || item.github_urls),
       conciseText(server.meaning_ja || "", server.name),
+      sourceCell(server.install_source || item.source),
     ]);
   });
-  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明"], rows, true) : emptyHtml();
+  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明", "入っている場所"], rows, true) : emptyHtml();
 }
 
 function renderFiles() {
@@ -220,6 +221,8 @@ function sourceLabel(source) {
     "Claude Code system": "Claude system",
     "Claude Code marketplace": "Claude Marketplace",
     "Agents shared skills": "共有",
+    "Workspace": "Workspace",
+    "Other": "その他",
   };
   return labels[source] || source || "-";
 }
