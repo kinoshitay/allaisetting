@@ -111,7 +111,7 @@ function renderMcp() {
           <div class="server-row">
             <span class="pill">${escapeHtml(server.name)}</span>
             ${server.meaning_ja ? `<span class="server-meaning">${escapeHtml(server.meaning_ja)}</span>` : ""}
-            ${linksHtml(server.github_urls)}
+            ${linksHtml(uniqueUrls(server.github_urls))}
           </div>
         `).join("")
       : `<span class="pill warn">No names detected</span>`;
@@ -119,7 +119,6 @@ function renderMcp() {
       <article class="item">
         <h2>${escapeHtml(item.path)}</h2>
         ${item.meaning_ja ? `<p class="meaning">${escapeHtml(item.meaning_ja)}</p>` : ""}
-        ${linksHtml(item.github_urls)}
         <div class="server-list">${servers}</div>
       </article>
     `;
@@ -157,7 +156,11 @@ function keyValues(object) {
 
 function linksHtml(urls) {
   if (!urls || !urls.length) return "";
-  return `<div class="links">${urls.map((url) => `<a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>`).join("")}</div>`;
+  return `<div class="links">${uniqueUrls(urls).map((url) => `<a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>`).join("")}</div>`;
+}
+
+function uniqueUrls(urls) {
+  return [...new Set((urls || []).filter(Boolean))];
 }
 
 function filterItems(items, stringify) {
