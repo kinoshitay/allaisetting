@@ -122,7 +122,6 @@ function renderMcp() {
         ${item.meaning_ja ? `<p class="meaning">${escapeHtml(item.meaning_ja)}</p>` : ""}
         ${linksHtml(item.github_urls)}
         <div class="server-list">${servers}</div>
-        ${item.preview ? `<pre>${escapeHtml(item.preview)}</pre>` : ""}
       </article>
     `;
   }).join("") : emptyHtml();
@@ -141,7 +140,6 @@ function renderFiles() {
       </div>
       ${item.meaning_ja ? `<p class="meaning">${escapeHtml(item.meaning_ja)}</p>` : ""}
       ${linksHtml(item.github_urls)}
-      ${item.preview ? `<pre>${escapeHtml(item.preview)}</pre>` : ""}
       ${item.error ? `<p class="meta">${escapeHtml(item.error)}</p>` : ""}
     </article>
   `).join("") : emptyHtml();
