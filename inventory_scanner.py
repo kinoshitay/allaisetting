@@ -154,8 +154,6 @@ def summarize_skill_japanese(name: str, source: str, description: str) -> str:
         base = "Claude 側にインストールされた Skill です。Claude Code が専門作業を進めるためのローカル手順書です。"
     else:
         base = "Codex 側にインストールされた Skill です。作業分野ごとの判断基準や実行手順を追加します。"
-    if description:
-        return f"{base} 元説明: {description[:180]}"
     return f"{base} `{name}` という名前の作業能力として検出されました。"
 
 

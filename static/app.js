@@ -98,7 +98,6 @@ function renderSkills() {
       </div>
       ${skill.meaning_ja ? `<p class="meaning">${escapeHtml(skill.meaning_ja)}</p>` : ""}
       ${linksHtml(skill.github_urls)}
-      ${skill.description ? `<p>${escapeHtml(skill.description)}</p>` : ""}
       ${skill.error ? `<p class="meta">${escapeHtml(skill.error)}</p>` : ""}
     </article>
   `).join("") : emptyHtml();
