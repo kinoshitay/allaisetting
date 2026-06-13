@@ -114,6 +114,68 @@ SERVICE_MEANINGS_JA = {
     "xcodebuildmcp": "Xcode Build MCP はiOS/macOSアプリのビルドやシミュレーター操作を支援するツールです。",
 }
 
+SKILL_MEANINGS_JA = {
+    "access": "外部サービスへの接続確認や利用準備をする。",
+    "agent-development": "Claude Code用エージェントの作成を支援する。",
+    "agmsg": "複数エージェント間でSQLite経由のメッセージ送受信をする。",
+    "build-mcp-app": "MCP対応アプリの設計・実装を支援する。",
+    "build-mcp-server": "MCPサーバーの構築を支援する。",
+    "build-mcpb": "MCP Bundleの作成を支援する。",
+    "cardputer-buddy": "Cardputer関連の開発や操作を支援する。",
+    "claude-automation-recommender": "Claude Codeの自動化設定を提案する。",
+    "claude-md-improver": "CLAUDE.mdの内容を改善する。",
+    "command-development": "Claude Code用コマンドの開発を支援する。",
+    "configure": "プラグインや外部サービスの初期設定を行う。",
+    "control-chrome": "ログイン済みChromeを操作・確認する。",
+    "control-in-app-browser": "Codex内蔵ブラウザを操作する。",
+    "documents": "WordやGoogle Docs向け文書を作成・編集する。",
+    "drive-receipt-renamer": "Google Drive上の領収書画像を分かりやすくリネームする。",
+    "edinetdb": "日本企業の開示・財務情報を調べる。",
+    "example-command": "Claudeプラグインのコマンド例。",
+    "example-skill": "ClaudeプラグインのSkill例。",
+    "freee-api-skill": "freee APIを調べたり実行したりする。",
+    "frontend-design": "フロントエンドUIの設計・改善を支援する。",
+    "gh-address-comments": "GitHub PRのレビュー指摘を確認し修正する。",
+    "gh-fix-ci": "GitHub Actionsの失敗原因を調べて修正する。",
+    "github": "GitHubのIssue、PR、リポジトリを扱う。",
+    "google-docs": "Google Docsの作成・編集を行う。",
+    "google-drive": "Google Drive上のファイルを検索・整理・編集する。",
+    "google-drive-comments": "Google Driveファイルのコメントを扱う。",
+    "google-sheets": "Google Sheetsの分析・編集を行う。",
+    "google-slides": "Google Slidesの作成・編集を行う。",
+    "grill-me": "計画や設計を質問攻めで検証する。",
+    "haruku": "agmsg系のクロスエージェントメッセージング用。",
+    "hook-development": "Claude Codeフックの開発を支援する。",
+    "imagegen": "画像生成・画像編集用。",
+    "m5-onboard": "M5Stack系デバイスのオンボーディングを支援する。",
+    "math-olympiad": "数学オリンピック風の問題解決を支援する。",
+    "mcp-integration": "プラグインとMCPの連携を支援する。",
+    "notion-knowledge-capture": "会話や決定事項をNotionに整理して記録する。",
+    "notion-meeting-intelligence": "Notion情報を使って会議準備をする。",
+    "notion-research-documentation": "Notion内の情報を調査・文書化する。",
+    "notion-spec-to-implementation": "Notion仕様から実装計画を作る。",
+    "openai-docs": "OpenAI / Codex / APIの公式ドキュメント確認に使う。",
+    "plugin-creator": "Codex用プラグインを新規作成・更新する。",
+    "plugin-settings": "Claudeプラグインの設定を扱う。",
+    "plugin-structure": "Claudeプラグインの構成を整理する。",
+    "playground": "Claudeプラグイン開発の試作用。",
+    "presentations": "PowerPointやスライド資料を作成する。",
+    "research-agent": "Web調査を低トークンで行う。",
+    "session-report": "Claude Codeセッションの内容をレポート化する。",
+    "skill-creator": "Skillを新規作成・改善する。",
+    "skill-development": "Claude Skillの開発を支援する。",
+    "skill-installer": "Skillを一覧表示したり、GitHub等からインストールする。",
+    "slack": "Slackの読み書きや文脈確認を行う。",
+    "slack-channel-summarization": "Slackチャンネルの内容を要約する。",
+    "slack-daily-digest": "Slackの日次ダイジェストを作る。",
+    "slack-notification-triage": "Slack通知を優先度順に整理する。",
+    "slack-outgoing-message": "Slack送信用メッセージを作成する。",
+    "slack-reply-drafting": "Slack返信文を下書きする。",
+    "spreadsheets": "CSVやExcel、Google Sheets向け表計算を扱う。",
+    "writing-rules": "文章やルール記述の整備を支援する。",
+    "yeet": "ローカル変更をGitHubへpushしPRを作る。",
+}
+
 
 @dataclass
 class ScanOptions:
@@ -193,27 +255,28 @@ def public_github_links(path: Path | str, text: str | None = None) -> list[str]:
 
 
 def summarize_skill_japanese(name: str, source: str, description: str) -> str:
+    if name in SKILL_MEANINGS_JA:
+        return SKILL_MEANINGS_JA[name]
     if source == "Codex plugin cache":
-        base = "Codex プラグインに同梱された Skill です。特定ツールを使う条件、手順、注意点をエージェントに教えます。"
+        return "Codexプラグインに含まれる作業用Skill。"
     elif source == "Claude Code plugin cache":
-        base = "Claude Code のインストール済みプラグインに同梱された Skill です。Claude Code が専門作業を実行するための手順や判断基準です。"
+        return "Claude Codeプラグインに含まれる作業用Skill。"
     elif source == "Claude Code marketplace":
-        base = "Claude Code の marketplace 由来の Skill です。インストール候補やプラグイン提供の作業手順として参照できます。"
+        return "Claude Code marketplace由来のSkill。"
     elif source == "Agents shared skills":
-        base = "Claude Code / Codex など複数エージェントで共有する Skill です。共通ワークフローを同じ作法で実行するための定義です。"
+        return "複数エージェントで共有するSkill。"
     elif source == "Claude":
-        base = "Claude 側にインストールされた Skill です。Claude Code が専門作業を進めるためのローカル手順書です。"
+        return "Claude側にインストールされたSkill。"
     else:
-        base = "Codex 側にインストールされた Skill です。作業分野ごとの判断基準や実行手順を追加します。"
-    return f"{base} `{name}` という名前の作業能力として検出されました。"
+        return "Codex側にインストールされたSkill。"
 
 
 def summarize_mcp_japanese(server_name: str, source: str) -> str:
     key = server_name.lower()
     service = SERVICE_MEANINGS_JA.get(key)
     if service:
-        return f"{service} MCP経由でエージェントから使えるようにする接続です。"
-    return f"`{server_name}` をエージェントから使えるようにするMCP接続です。"
+        return service
+    return f"{server_name} のMCP接続です。"
 
 
 def summarize_context_file_japanese(category: str) -> str:

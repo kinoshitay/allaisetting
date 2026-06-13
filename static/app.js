@@ -88,11 +88,9 @@ function renderSettings() {
 
 function renderSkills() {
   const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["スキル", "種別", "概要", "GitHub"], skills.map((skill) => [
-    `<strong>${escapeHtml(skill.name)}</strong><div class="path">${escapeHtml(skill.path)}</div>`,
-    skill.source,
-    skill.meaning_ja || "",
-    linkCell(skill.github_urls),
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明"], skills.map((skill) => [
+    nameCell(skill.name, skill.path, skill.github_urls),
+    conciseText(skill.meaning_ja || "", skill.name),
   ]), true) : emptyHtml();
 }
 
@@ -101,29 +99,25 @@ function renderMcp() {
   const rows = mcp.flatMap((item) => {
     const servers = item.servers && item.servers.length ? item.servers : [{ name: "-", meaning_ja: "MCPサーバー名を検出できませんでした。", github_urls: item.github_urls }];
     return servers.map((server) => [
-      `<strong>${escapeHtml(item.path)}</strong><div class="meta">${escapeHtml(item.meaning_ja || "MCP設定ファイルです。")}</div>`,
-      `<span class="pill">${escapeHtml(server.name)}</span>`,
-      server.meaning_ja || "",
-      linkCell(server.github_urls || item.github_urls),
+      nameCell(server.name, item.path, server.github_urls || item.github_urls),
+      conciseText(server.meaning_ja || "", server.name),
     ]);
   });
-  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["設定ファイル", "サーバー", "概要", "GitHub"], rows, true) : emptyHtml();
+  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明"], rows, true) : emptyHtml();
 }
 
 function renderFiles() {
   const files = filterItems(state.report.context_files || [], (item) => `${item.path} ${item.category} ${item.meaning_ja || ""} ${item.preview || ""} ${(item.github_urls || []).join(" ")}`);
-  panels.files.innerHTML = files.length ? sectionTable("Files", ["ファイル", "種別", "概要", "GitHub"], files.map((item) => [
-    `<strong>${escapeHtml(item.path)}</strong><div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>`,
-    item.category,
-    item.meaning_ja || "",
-    linkCell(item.github_urls),
+  panels.files.innerHTML = files.length ? sectionTable("Files", ["ファイル", "シンプルな説明"], files.map((item) => [
+    nameCell(shortName(item.path), item.path, item.github_urls),
+    `${escapeHtml(item.meaning_ja || "")}<div class="meta">${escapeHtml(item.category)} · ${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>`,
   ]), true) : emptyHtml();
 }
 
 function renderCleanup() {
   const candidates = filterItems(state.report.cleanup_candidates || [], (item) => `${item.path} ${item.reason || ""}`);
   panels.cleanup.innerHTML = candidates.length ? sectionTable("Cleanup", ["ファイル", "理由", "操作"], candidates.map((item) => [
-    `<strong>${escapeHtml(item.path)}</strong><div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>`,
+    `<code title="${escapeAttribute(item.path)}">${escapeHtml(shortName(item.path))}</code><div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>`,
     item.reason || "隔離候補です。",
     `<button class="danger-button" type="button" data-quarantine-path="${escapeAttribute(item.path)}">Quarantine</button>`,
   ]), true) : `<div class="empty">No cleanup candidates.</div>`;
@@ -169,16 +163,20 @@ function sectionTable(title, headers, rows, rawHtml = false) {
   `;
 }
 
-function linksHtml(urls) {
-  if (!urls || !urls.length) return "";
+function nameCell(name, title, urls) {
   const url = preferredUrl(urls);
-  if (!url) return "";
-  return `<div class="links"><a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a></div>`;
+  const code = `<code title="${escapeAttribute(title || "")}">${escapeHtml(name)}</code>`;
+  return url ? `<a class="name-link" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">${code}</a>` : code;
 }
 
-function linkCell(urls) {
-  const url = preferredUrl(urls);
-  return url ? `<a class="table-link" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>` : "";
+function conciseText(text, fallback) {
+  return escapeHtml(text || `${fallback} の設定です。`)
+    .replaceAll(" MCP経由でエージェントから使えるようにする接続です。", " 連携です。")
+    .replaceAll(" という名前の作業能力として検出されました。", " です。");
+}
+
+function shortName(path) {
+  return String(path || "").split("/").filter(Boolean).pop() || path;
 }
 
 function uniqueUrls(urls) {
