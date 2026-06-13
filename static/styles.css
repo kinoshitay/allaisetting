@@ -215,12 +215,12 @@ td {
 }
 
 td:first-child {
-  width: 28%;
+  width: 24%;
   padding-right: 22px;
 }
 
 td:last-child {
-  width: 18%;
+  width: 16%;
 }
 
 td code {
@@ -275,6 +275,22 @@ tr:last-child td {
   white-space: nowrap;
 }
 
+.status-label {
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.small-button {
+  border-radius: 6px;
+  font-size: 12px;
+  min-height: 30px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
 .danger-button {
   border-color: #e3b5b5;
   color: #9f2a2a;
@@ -309,7 +325,7 @@ tr:last-child td {
   }
 
   td:first-child {
-    width: 36%;
+    width: 32%;
     padding-right: 14px;
   }
 

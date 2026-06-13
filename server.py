@@ -38,6 +38,8 @@ class InventoryHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/quarantine":
             return self.handle_quarantine()
+        if parsed.path == "/api/share-skill":
+            return self.handle_share_skill()
         self.send_json({"ok": False, "error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
     def handle_scan(self, query: str) -> None:
@@ -76,6 +78,42 @@ class InventoryHandler(SimpleHTTPRequestHandler):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(requested_path), str(destination))
             self.send_json({"ok": True, "moved_to": str(destination)})
+        except Exception as exc:
+            self.send_json({"ok": False, "error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def handle_share_skill(self) -> None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+            requested_path = Path(str(payload.get("path", ""))).expanduser().resolve(strict=True)
+            skills = run_scan(ROOT, include_previews=False).get("skills", [])
+            allowed = {
+                Path(item["path"]).expanduser().resolve(strict=True): item
+                for item in skills
+                if item.get("share_allowed")
+            }
+            skill = allowed.get(requested_path)
+            if not skill:
+                return self.send_json(
+                    {"ok": False, "error": "This skill is not an allowed share candidate."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+            source_dir = requested_path.parent
+            destination = Path(skill["share_target"]).expanduser()
+            shared_root = Path.home() / ".agents" / "skills"
+            if shared_root.resolve() not in [destination.resolve().parent, *destination.resolve().parents]:
+                return self.send_json(
+                    {"ok": False, "error": "Invalid shared skill destination."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+            if destination.exists():
+                return self.send_json(
+                    {"ok": False, "error": "Shared skill already exists."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+            shared_root.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(source_dir, destination, symlinks=True)
+            self.send_json({"ok": True, "copied_to": str(destination)})
         except Exception as exc:
             self.send_json({"ok": False, "error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 

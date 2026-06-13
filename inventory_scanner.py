@@ -445,6 +445,8 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
     for skill_file in sorted(set(skill_files)):
         content, error = safe_read_text(skill_file)
         title = skill_file.parent.name
+        source = skill_source(skill_file, home)
+        share = skill_share_info(skill_file, source, home)
         description = ""
         if content:
             match = re.search(r"^description:\s*(.+)$", content, re.MULTILINE)
@@ -456,11 +458,12 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
             {
                 "name": title,
                 "path": str(skill_file),
-                "source": skill_source(skill_file, home),
+                "source": source,
                 "description": description,
-                "meaning_ja": summarize_skill_japanese(title, skill_source(skill_file, home), description),
+                "meaning_ja": summarize_skill_japanese(title, source, description),
                 "github_urls": public_github_links(skill_file, description),
                 "error": error,
+                **share,
             }
         )
     return skills
@@ -474,11 +477,46 @@ def skill_source(path: Path, home: Path) -> str:
         return "Claude Code plugin cache"
     if f"{home}/.claude/plugins/marketplaces" in as_text:
         return "Claude Code marketplace"
+    if f"{home}/.codex/skills/.system" in as_text:
+        return "Codex system"
+    if f"{home}/.claude/skills/.system" in as_text:
+        return "Claude Code system"
     if f"{home}/.agents/skills" in as_text:
         return "Agents shared skills"
     if f"{home}/.claude" in as_text:
         return "Claude"
     return "Codex"
+
+
+def skill_share_info(skill_file: Path, source: str, home: Path) -> dict[str, Any]:
+    target = home / ".agents" / "skills" / skill_file.parent.name
+    if source == "Agents shared skills":
+        return {
+            "share_status": "共有済み",
+            "share_allowed": False,
+            "share_reason": "すでに共有フォルダにあります。",
+            "share_target": str(skill_file.parent),
+        }
+    if target.exists():
+        return {
+            "share_status": "共有先あり",
+            "share_allowed": False,
+            "share_reason": "同名のSkillが共有フォルダにあります。",
+            "share_target": str(target),
+        }
+    if source in {"Codex", "Claude"}:
+        return {
+            "share_status": "コピー可",
+            "share_allowed": True,
+            "share_reason": "単体Skillなので共有フォルダへコピーできます。",
+            "share_target": str(target),
+        }
+    return {
+        "share_status": "要確認",
+        "share_allowed": False,
+        "share_reason": "プラグインやシステム由来のため、自動コピーは避けます。",
+        "share_target": str(target),
+    }
 
 
 def extract_mcp_servers_from_text(text: str) -> list[dict[str, str]]:

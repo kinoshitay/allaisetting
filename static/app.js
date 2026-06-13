@@ -87,12 +87,17 @@ function renderSettings() {
 }
 
 function renderSkills() {
-  const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所"], skills.map((skill) => [
+  const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所", "共有"], skills.map((skill) => [
     nameCell(skill.name, skill.path, skill.github_urls),
     conciseText(skill.meaning_ja || "", skill.name),
     sourceCell(skill.source),
+    shareCell(skill),
   ]), true) : emptyHtml();
+
+  panels.skills.querySelectorAll("[data-share-skill-path]").forEach((button) => {
+    button.addEventListener("click", () => shareSkill(button.dataset.shareSkillPath));
+  });
 }
 
 function renderMcp() {
@@ -146,6 +151,24 @@ async function quarantinePath(path) {
   scan();
 }
 
+async function shareSkill(path) {
+  if (!path) return;
+  const ok = window.confirm(`このSkillを共有フォルダへコピーしますか？\n\n${path}\n\n元のSkillは残します。`);
+  if (!ok) return;
+  const response = await fetch("/api/share-skill", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    window.alert(payload.error || "Share failed.");
+    return;
+  }
+  window.alert(`共有フォルダへコピーしました:\n${payload.copied_to}`);
+  scan();
+}
+
 function sectionTable(title, headers, rows, rawHtml = false) {
   return `
     <section class="table-section">
@@ -180,12 +203,21 @@ function sourceCell(source) {
   return `<span class="source-label">${escapeHtml(sourceLabel(source))}</span>`;
 }
 
+function shareCell(skill) {
+  if (skill.share_allowed) {
+    return `<button class="small-button" type="button" title="${escapeAttribute(skill.share_reason || "")}" data-share-skill-path="${escapeAttribute(skill.path)}">共有へコピー</button>`;
+  }
+  return `<span class="status-label" title="${escapeAttribute(skill.share_reason || "")}">${escapeHtml(skill.share_status || "-")}</span>`;
+}
+
 function sourceLabel(source) {
   const labels = {
     "Codex": "Codex",
     "Codex plugin cache": "Codex",
+    "Codex system": "Codex system",
     "Claude": "Claude Code",
     "Claude Code plugin cache": "Claude Code",
+    "Claude Code system": "Claude system",
     "Claude Code marketplace": "Claude Marketplace",
     "Agents shared skills": "共有",
   };
