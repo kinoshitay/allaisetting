@@ -40,6 +40,22 @@ CONTEXT_FILENAMES = [
     "config.json",
 ]
 
+CLEANUP_FILE_PATTERNS = [
+    ".DS_Store",
+    "report.json",
+    "report.md",
+    "report.html",
+    "*.inventory.json",
+    "*.inventory.md",
+    "*.inventory.html",
+]
+
+CLEANUP_DIR_NAMES = {
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+}
+
 IMPORTANT_ENV_ALLOWLIST = [
     "SHELL",
     "USER",
@@ -201,6 +217,44 @@ def path_meta(path: Path) -> dict[str, Any]:
         }
     except OSError:
         return {"path": str(path), "exists": False}
+
+
+def cleanup_reason(path: Path) -> str | None:
+    if path.is_dir() and path.name in CLEANUP_DIR_NAMES:
+        return "Python やテスト実行で作られるキャッシュディレクトリです。必要なら再生成されます。"
+    if path.is_file() and any(fnmatch.fnmatch(path.name, pattern) for pattern in CLEANUP_FILE_PATTERNS):
+        return "このアプリの出力レポートや OS が作る補助ファイルです。公開前や整理時は隔離候補にできます。"
+    return None
+
+
+def scan_cleanup_candidates(workspace: Path) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    if not workspace.exists():
+        return candidates
+    workspace = workspace.resolve()
+    for current, dirnames, filenames in os.walk(workspace):
+        current_path = Path(current)
+        depth = len(current_path.relative_to(workspace).parts)
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d != ".git" and d not in {"node_modules", ".venv", "venv"} and depth < MAX_SEARCH_DEPTH
+        ]
+        for dirname in list(dirnames):
+            path = current_path / dirname
+            reason = cleanup_reason(path)
+            if reason:
+                item = path_meta(path)
+                item.update({"reason": reason, "quarantine_allowed": True})
+                candidates.append(item)
+        for filename in filenames:
+            path = current_path / filename
+            reason = cleanup_reason(path)
+            if reason:
+                item = path_meta(path)
+                item.update({"reason": reason, "quarantine_allowed": True})
+                candidates.append(item)
+    return sorted(candidates, key=lambda item: item["path"])
 
 
 def iter_limited_files(root: Path, patterns: list[str]) -> list[Path]:
@@ -405,12 +459,14 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
         "context_files": context_files,
         "skills": scan_skills(home),
         "mcp": scan_mcp(context_files),
+        "cleanup_candidates": scan_cleanup_candidates(ws),
     }
     report["summary"] = {
         "context_files": len(report["context_files"]),
         "skills": len(report["skills"]),
         "mcp_config_files": len(report["mcp"]),
         "mcp_servers": sum(len(item.get("servers", [])) for item in report["mcp"]),
+        "cleanup_candidates": len(report["cleanup_candidates"]),
     }
     return report
 

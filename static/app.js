@@ -10,6 +10,7 @@ const panels = {
   skills: document.querySelector("#skillsPanel"),
   mcp: document.querySelector("#mcpPanel"),
   files: document.querySelector("#filesPanel"),
+  cleanup: document.querySelector("#cleanupPanel"),
 };
 const emptyTemplate = document.querySelector("#emptyTemplate");
 
@@ -51,6 +52,7 @@ function render() {
   renderSkills();
   renderMcp();
   renderFiles();
+  renderCleanup();
 }
 
 function renderSummary() {
@@ -60,6 +62,7 @@ function renderSummary() {
     ["Skills", summary.skills || 0],
     ["MCP files", summary.mcp_config_files || 0],
     ["MCP servers", summary.mcp_servers || 0],
+    ["Cleanup", summary.cleanup_candidates || 0],
   ];
   summaryEl.innerHTML = metrics.map(([label, value]) => `
     <article class="metric">
@@ -141,6 +144,44 @@ function renderFiles() {
       ${item.error ? `<p class="meta">${escapeHtml(item.error)}</p>` : ""}
     </article>
   `).join("") : emptyHtml();
+}
+
+function renderCleanup() {
+  const candidates = filterItems(state.report.cleanup_candidates || [], (item) => `${item.path} ${item.reason || ""}`);
+  panels.cleanup.innerHTML = candidates.length ? candidates.map((item) => `
+    <article class="item">
+      <div class="item-header">
+        <div>
+          <h2>${escapeHtml(item.path)}</h2>
+          <div class="meta">${escapeHtml(item.type || "file")} · ${item.size || 0} bytes</div>
+        </div>
+        <button class="danger-button" type="button" data-quarantine-path="${escapeAttribute(item.path)}">Quarantine</button>
+      </div>
+      <p class="meaning">${escapeHtml(item.reason || "隔離候補です。")}</p>
+    </article>
+  `).join("") : `<div class="empty">No cleanup candidates.</div>`;
+
+  panels.cleanup.querySelectorAll("[data-quarantine-path]").forEach((button) => {
+    button.addEventListener("click", () => quarantinePath(button.dataset.quarantinePath));
+  });
+}
+
+async function quarantinePath(path) {
+  if (!path) return;
+  const ok = window.confirm(`このファイルを隔離しますか？\n\n${path}\n\n完全削除ではなく ~/.all-ai-setting-trash に移動します。`);
+  if (!ok) return;
+  const response = await fetch("/api/quarantine", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    window.alert(payload.error || "Quarantine failed.");
+    return;
+  }
+  window.alert(`隔離しました:\n${payload.moved_to}`);
+  scan();
 }
 
 function settingsCard(title, body) {

@@ -38,3 +38,5 @@ python3 inventory_scanner.py --html > report.html
 The scanner masks common secret fields and token-like values before showing previews or exporting reports. It is still a local diagnostic tool, so review exported files before sharing them outside your machine.
 
 Do not commit generated inventory reports to a public repository unless you have reviewed them manually. Reports can include local paths, installed tools, private workspace names, and masked snippets of configuration files.
+
+The Cleanup tab only offers quarantine actions for low-risk generated files such as local reports and cache folders. It does not expose quarantine buttons for core configuration files such as `config.toml`, `.mcp.json`, `AGENTS.md`, `CLAUDE.md`, or `SKILL.md`. Quarantined items are moved to `~/.all-ai-setting-trash/` rather than permanently deleted.

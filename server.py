@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -33,6 +34,12 @@ class InventoryHandler(SimpleHTTPRequestHandler):
             return self.handle_export("html")
         return super().do_GET()
 
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/quarantine":
+            return self.handle_quarantine()
+        self.send_json({"ok": False, "error": "Not found"}, status=HTTPStatus.NOT_FOUND)
+
     def handle_scan(self, query: str) -> None:
         params = parse_qs(query)
         include_previews = params.get("previews", ["1"])[0] != "0"
@@ -51,17 +58,45 @@ class InventoryHandler(SimpleHTTPRequestHandler):
             body = report_to_html(report)
             self.send_bytes(body.encode("utf-8"), "text/html; charset=utf-8")
 
-    def send_json(self, payload) -> None:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_bytes(body, "application/json; charset=utf-8")
+    def handle_quarantine(self) -> None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+            requested_path = Path(str(payload.get("path", ""))).expanduser().resolve(strict=True)
+            candidates = {
+                Path(item["path"]).expanduser().resolve(strict=True)
+                for item in run_scan(ROOT, include_previews=False).get("cleanup_candidates", [])
+            }
+            if requested_path not in candidates:
+                return self.send_json(
+                    {"ok": False, "error": "This file is not an allowed cleanup candidate."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+            destination = quarantine_destination(requested_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(requested_path), str(destination))
+            self.send_json({"ok": True, "moved_to": str(destination)})
+        except Exception as exc:
+            self.send_json({"ok": False, "error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
-    def send_bytes(self, body: bytes, content_type: str) -> None:
-        self.send_response(HTTPStatus.OK)
+    def send_json(self, payload, status: HTTPStatus = HTTPStatus.OK) -> None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_bytes(body, "application/json; charset=utf-8", status=status)
+
+    def send_bytes(self, body: bytes, content_type: str, status: HTTPStatus = HTTPStatus.OK) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+
+def quarantine_destination(path: Path) -> Path:
+    stamp = path.stat().st_mtime_ns
+    trash_root = Path.home() / ".all-ai-setting-trash"
+    safe_parts = [part for part in path.parts if part not in {"/", ""}]
+    return trash_root / f"{stamp}" / Path(*safe_parts)
 
 
 def main() -> int:
