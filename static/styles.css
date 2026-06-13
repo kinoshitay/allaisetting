@@ -291,6 +291,42 @@ tr:last-child td {
   white-space: nowrap;
 }
 
+.score-label {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.score-label.good {
+  background: #effaf4;
+  border-color: #c9ecd8;
+  color: var(--ok);
+}
+
+.score-label.warn {
+  background: #fff8e8;
+  border-color: #f2dfad;
+  color: var(--warn);
+}
+
+.score-label.risk {
+  background: #fff0f0;
+  border-color: #efc4c4;
+  color: #9f2a2a;
+}
+
+.score-level {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
 .status-label {
   color: var(--muted);
   display: inline-flex;

@@ -31,6 +31,29 @@ SECRET_VALUE_PATTERNS = [
     (re.compile(r"[A-Za-z0-9+/]{40,}={0,2}"), False),
 ]
 
+SKILL_SECURITY_RULES = [
+    (re.compile(r"\[REDACTED\]", re.IGNORECASE), 35, "秘密情報らしき値"),
+    (re.compile(r"api[_-]?key|token|secret|password|credential", re.IGNORECASE), 8, "認証情報の扱い"),
+    (re.compile(r"\b(curl|wget|fetch|requests\.|httpx\.|urllib|https?://)", re.IGNORECASE), 10, "外部通信"),
+    (re.compile(r"\b(rm\s+-rf|shutil\.rmtree|os\.remove|unlink|delete\s+file)", re.IGNORECASE), 20, "削除操作"),
+    (re.compile(r"\b(subprocess|os\.system|shell=True|eval\(|exec\()", re.IGNORECASE), 15, "コマンド実行"),
+    (re.compile(r"\b(sudo|chmod|chown|security\s+|keychain|ssh-key|private key)", re.IGNORECASE), 12, "権限・認証操作"),
+    (re.compile(r"\b(playwright|browser|chrome|screenshot|click\()", re.IGNORECASE), 6, "ブラウザ操作"),
+]
+
+SKILL_SECURITY_SCAN_EXTENSIONS = {
+    ".md",
+    ".txt",
+    ".json",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".py",
+    ".js",
+    ".ts",
+    ".sh",
+}
+
 CONTEXT_FILENAMES = [
     "AGENTS.md",
     "CLAUDE.md",
@@ -465,6 +488,7 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
         title = skill_file.parent.name
         source = skill_source(skill_file, home)
         share = skill_share_info(skill_file, source, home)
+        security = skill_security_diagnosis(skill_file.parent, content or "")
         description = ""
         if content:
             match = re.search(r"^description:\s*(.+)$", content, re.MULTILINE)
@@ -481,10 +505,83 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
                 "meaning_ja": summarize_skill_japanese(title, source, description),
                 "github_urls": public_github_links(skill_file, description),
                 "error": error,
+                "security_score": security["score"],
+                "security_level": security["level"],
+                "security_summary": security["summary"],
+                "security_findings": security["findings"],
                 **share,
             }
         )
     return skills
+
+
+def skill_security_diagnosis(skill_dir: Path, primary_text: str) -> dict[str, Any]:
+    texts = [primary_text]
+    scanned_files = 1
+    for path in iter_skill_security_files(skill_dir):
+        if path.name == "SKILL.md":
+            continue
+        text, _ = safe_read_text(path)
+        if text:
+            texts.append(text)
+            scanned_files += 1
+    blob = "\n".join(texts)
+    findings: list[str] = []
+    penalty = 0
+    for pattern, points, label in SKILL_SECURITY_RULES:
+        if pattern.search(blob):
+            findings.append(label)
+            penalty += points
+    if scanned_files > 25:
+        findings.append("ファイル数多め")
+        penalty += 5
+    score = max(0, 100 - min(penalty, 85))
+    unique_findings = unique_strings(findings)
+    return {
+        "score": score,
+        "level": security_level(score),
+        "summary": security_summary(score, unique_findings),
+        "findings": unique_findings,
+    }
+
+
+def iter_skill_security_files(skill_dir: Path) -> list[Path]:
+    files: list[Path] = []
+    if not skill_dir.exists():
+        return files
+    for current, dirnames, filenames in os.walk(skill_dir):
+        current_path = Path(current)
+        depth = len(current_path.relative_to(skill_dir).parts)
+        dirnames[:] = [
+            dirname
+            for dirname in dirnames
+            if dirname not in {".git", "node_modules", "__pycache__", ".venv", "venv"}
+            and not dirname.startswith(".")
+            and depth < 3
+        ]
+        for filename in filenames:
+            path = current_path / filename
+            if path.suffix.lower() in SKILL_SECURITY_SCAN_EXTENSIONS:
+                files.append(path)
+            if len(files) >= 30:
+                return files
+    return files
+
+
+def security_level(score: int) -> str:
+    if score >= 90:
+        return "良好"
+    if score >= 70:
+        return "注意"
+    if score >= 50:
+        return "要確認"
+    return "高リスク"
+
+
+def security_summary(score: int, findings: list[str]) -> str:
+    if not findings:
+        return f"{score}点: 大きな懸念なし"
+    return f"{score}点: {', '.join(findings[:3])}"
 
 
 def skill_source(path: Path, home: Path) -> str:
@@ -707,6 +804,8 @@ def report_to_markdown(report: dict[str, Any]) -> str:
         lines.append(f"- `{skill['name']}` ({skill['source']}): `{skill['path']}`{desc}")
         if skill.get("meaning_ja"):
             lines.append(f"  - 意味: {skill['meaning_ja']}")
+        if skill.get("security_summary"):
+            lines.append(f"  - セキュリティ診断: {skill['security_summary']}")
         for url in skill.get("github_urls", []):
             lines.append(f"  - GitHub: {url}")
     lines.extend(["", "## MCP"])

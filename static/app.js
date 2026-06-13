@@ -87,11 +87,12 @@ function renderSettings() {
 }
 
 function renderSkills() {
-  const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所", "元GitHub", "共有"], skills.map((skill) => [
+  const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.security_summary || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所", "診断", "元GitHub", "共有"], skills.map((skill) => [
     nameCell(skill.name, skill.path, skill.github_urls),
     conciseText(skill.meaning_ja || "", skill.name),
     sourceCell(skill.source),
+    securityCell(skill),
     githubCell(skill.github_urls),
     shareCell(skill),
   ]), true) : emptyHtml();
@@ -210,6 +211,13 @@ function sourceCell(source) {
 function githubCell(urls) {
   const url = preferredUrl(urls);
   return url ? `<a class="source-link" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">GitHub</a>` : `<span class="status-label">-</span>`;
+}
+
+function securityCell(skill) {
+  const score = Number.isFinite(skill.security_score) ? skill.security_score : 0;
+  const level = skill.security_level || "要確認";
+  const className = score >= 90 ? "good" : score >= 70 ? "warn" : "risk";
+  return `<span class="score-label ${className}" title="${escapeAttribute(skill.security_summary || "")}">${score}点</span><div class="score-level">${escapeHtml(level)}</div>`;
 }
 
 function shareCell(skill) {
