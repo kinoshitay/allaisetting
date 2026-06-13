@@ -88,9 +88,10 @@ function renderSettings() {
 
 function renderSkills() {
   const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明"], skills.map((skill) => [
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["Skill", "シンプルな説明", "入っている場所"], skills.map((skill) => [
     nameCell(skill.name, skill.path, skill.github_urls),
     conciseText(skill.meaning_ja || "", skill.name),
+    sourceCell(skill.source),
   ]), true) : emptyHtml();
 }
 
@@ -173,6 +174,22 @@ function conciseText(text, fallback) {
   return escapeHtml(text || `${fallback} の設定です。`)
     .replaceAll(" MCP経由でエージェントから使えるようにする接続です。", " 連携です。")
     .replaceAll(" という名前の作業能力として検出されました。", " です。");
+}
+
+function sourceCell(source) {
+  return `<span class="source-label">${escapeHtml(sourceLabel(source))}</span>`;
+}
+
+function sourceLabel(source) {
+  const labels = {
+    "Codex": "Codex",
+    "Codex plugin cache": "Codex",
+    "Claude": "Claude Code",
+    "Claude Code plugin cache": "Claude Code",
+    "Claude Code marketplace": "Claude Marketplace",
+    "Agents shared skills": "共有",
+  };
+  return labels[source] || source || "-";
 }
 
 function shortName(path) {
