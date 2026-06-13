@@ -144,6 +144,10 @@ def public_github_links(path: Path | str, text: str | None = None) -> list[str]:
 def summarize_skill_japanese(name: str, source: str, description: str) -> str:
     if source == "Codex plugin cache":
         base = "Codex プラグインに同梱された Skill です。特定ツールを使う条件、手順、注意点をエージェントに教えます。"
+    elif source == "Claude Code plugin cache":
+        base = "Claude Code のインストール済みプラグインに同梱された Skill です。Claude Code が専門作業を実行するための手順や判断基準です。"
+    elif source == "Claude Code marketplace":
+        base = "Claude Code の marketplace 由来の Skill です。インストール候補やプラグイン提供の作業手順として参照できます。"
     elif source == "Agents shared skills":
         base = "Claude Code / Codex など複数エージェントで共有する Skill です。共通ワークフローを同じ作法で実行するための定義です。"
     elif source == "Claude":
@@ -278,6 +282,8 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
         home / ".claude" / "skills",
         home / ".agents" / "skills",
         home / ".codex" / "plugins" / "cache",
+        home / ".claude" / "plugins" / "cache",
+        home / ".claude" / "plugins" / "marketplaces",
     ]
     skill_files: list[Path] = []
     for root in roots:
@@ -311,6 +317,10 @@ def skill_source(path: Path, home: Path) -> str:
     as_text = str(path)
     if f"{home}/.codex/plugins/cache" in as_text:
         return "Codex plugin cache"
+    if f"{home}/.claude/plugins/cache" in as_text:
+        return "Claude Code plugin cache"
+    if f"{home}/.claude/plugins/marketplaces" in as_text:
+        return "Claude Code marketplace"
     if f"{home}/.agents/skills" in as_text:
         return "Agents shared skills"
     if f"{home}/.claude" in as_text:
