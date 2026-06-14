@@ -840,14 +840,35 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
         "mcp": scan_mcp(context_files, ws),
         "cleanup_candidates": scan_cleanup_candidates(ws),
     }
+    device_ai = device_ai_proficiency(report["skills"])
     report["summary"] = {
         "context_files": len(report["context_files"]),
         "skills": len(report["skills"]),
         "mcp_config_files": len(report["mcp"]),
         "mcp_servers": sum(len(item.get("servers", [])) for item in report["mcp"]),
         "cleanup_candidates": len(report["cleanup_candidates"]),
+        "ai_proficiency_score": device_ai["score"],
+        "ai_proficiency_level": device_ai["level"],
+        "ai_proficiency_summary": device_ai["summary"],
     }
     return report
+
+
+def device_ai_proficiency(skills: list[dict[str, Any]]) -> dict[str, Any]:
+    scores = [
+        int(skill["ai_proficiency_score"])
+        for skill in skills
+        if isinstance(skill.get("ai_proficiency_score"), int)
+    ]
+    if not scores:
+        return {"score": 0, "level": "未評価", "summary": "0点: Skillが検出されませんでした"}
+    score = round(sum(scores) / len(scores))
+    level = ai_proficiency_level(score)
+    return {
+        "score": score,
+        "level": level,
+        "summary": f"{score}点: {len(scores)}件のSkill平均",
+    }
 
 
 def report_to_markdown(report: dict[str, Any]) -> str:
@@ -860,6 +881,8 @@ def report_to_markdown(report: dict[str, Any]) -> str:
         "",
         "## Summary",
     ]
+    if report.get("summary", {}).get("ai_proficiency_summary"):
+        lines.append(f"- Device AI proficiency: {report['summary']['ai_proficiency_summary']}")
     for key, value in report.get("summary", {}).items():
         lines.append(f"- {key}: {value}")
     lines.extend(["", "## CLI Versions"])

@@ -57,6 +57,8 @@ function render() {
 
 function renderSummary() {
   const summary = state.report.summary || {};
+  const aiScore = summary.ai_proficiency_score || 0;
+  const aiLevel = summary.ai_proficiency_level || "未評価";
   const metrics = [
     ["Context files", summary.context_files || 0],
     ["Skills", summary.skills || 0],
@@ -64,7 +66,13 @@ function renderSummary() {
     ["MCP servers", summary.mcp_servers || 0],
     ["Cleanup", summary.cleanup_candidates || 0],
   ];
-  summaryEl.innerHTML = metrics.map(([label, value]) => `
+  summaryEl.innerHTML = `
+    <article class="ai-score-card">
+      <span>このデバイスのAI習熟度</span>
+      <strong>${aiScore}<small>/100</small></strong>
+      <em>${escapeHtml(aiLevel)}</em>
+    </article>
+  ` + metrics.map(([label, value]) => `
     <article class="metric">
       <span>${label}</span>
       <strong>${value}</strong>

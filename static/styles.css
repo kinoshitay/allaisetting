@@ -95,17 +95,53 @@ button:hover,
 
 .summary-grid {
   display: grid;
-  gap: 0;
+  gap: 14px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 18px;
   border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
 }
 
 .metric,
+.ai-score-card,
 .table-section {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.ai-score-card {
+  align-items: baseline;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.ai-score-card span {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ai-score-card strong {
+  color: var(--accent-strong);
+  font-size: 48px;
+  line-height: 1;
+}
+
+.ai-score-card small {
+  color: var(--muted);
+  font-size: 18px;
+  margin-left: 3px;
+}
+
+.ai-score-card em {
+  color: var(--text);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .metric {
@@ -392,6 +428,16 @@ tr:last-child td {
 
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-score-card {
+    align-items: start;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ai-score-card strong {
+    font-size: 40px;
   }
 
   td:first-child {
