@@ -1253,6 +1253,7 @@ def ai_score_report_to_markdown(report: dict[str, Any]) -> str:
         for item in report.get("mcp", [])
         for server in item.get("servers", [])
     ]
+    duplicate_skill_counts = duplicate_name_counts(skills)
     low_skills = sorted(
         skills,
         key=lambda skill: (int(skill.get("usage_count") or 0), int(skill.get("ai_proficiency_score") or 0), skill.get("name", "")),
@@ -1330,7 +1331,7 @@ def ai_score_report_to_markdown(report: dict[str, Any]) -> str:
         ]
     )
     for skill in low_skills:
-        suggestion = "不要なら削除候補。必要なら実タスクで使うか、説明・手順・検証条件を追記する。"
+        suggestion = skill_improvement_suggestion(skill, duplicate_skill_counts)
         lines.append(
             f"| `{skill.get('name')}` | {skill.get('usage_count', 0)} | {skill.get('ai_proficiency_score', 0)} | {suggestion} |"
         )
@@ -1364,6 +1365,28 @@ def ai_score_report_to_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def duplicate_name_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        name = str(item.get("name", "")).strip().lower()
+        if name:
+            counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def skill_improvement_suggestion(skill: dict[str, Any], duplicate_counts: dict[str, int]) -> str:
+    name = str(skill.get("name", "")).strip().lower()
+    usage_count = int(skill.get("usage_count") or 0)
+    duplicate_count = duplicate_counts.get(name, 0)
+    if duplicate_count > 1 and usage_count == 0:
+        return f"同名Skillが{duplicate_count}件あります。重複で使われていない可能性が高いため、削除または1つに統合する候補です。"
+    if duplicate_count > 1:
+        return f"同名Skillが{duplicate_count}件あります。重複のため片方だけ使われている可能性があるので、内容と配置場所を確認して統合候補にしてください。"
+    if usage_count == 0:
+        return "利用痕跡がありません。不要なら削除候補、必要なら実タスクで使うか、説明・手順・検証条件を追記してください。"
+    return "利用はありますが低めです。必要なら利用頻度を増やすか、より使いやすい説明・手順に整えてください。"
+
+
 def ai_score_report_to_html(report: dict[str, Any]) -> str:
     summary = report.get("summary", {})
     components = summary.get("ai_proficiency_components", [])
@@ -1373,6 +1396,7 @@ def ai_score_report_to_html(report: dict[str, Any]) -> str:
         for item in report.get("mcp", [])
         for server in item.get("servers", [])
     ]
+    duplicate_skill_counts = duplicate_name_counts(skills)
     low_skills = sorted(
         skills,
         key=lambda skill: (int(skill.get("usage_count") or 0), int(skill.get("ai_proficiency_score") or 0), skill.get("name", "")),
@@ -1422,7 +1446,7 @@ def ai_score_report_to_html(report: dict[str, Any]) -> str:
             <td><code>{html.escape(str(skill.get("name", "")))}</code></td>
             <td class="number">{int(skill.get("usage_count") or 0)}</td>
             <td class="number">{int(skill.get("ai_proficiency_score") or 0)}</td>
-            <td>不要なら整理候補。必要なら実タスクで使うか、説明・手順・検証条件を追記する。</td>
+            <td>{html.escape(skill_improvement_suggestion(skill, duplicate_skill_counts))}</td>
           </tr>
         """
         for skill in low_skills
