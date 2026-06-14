@@ -67,7 +67,7 @@ function renderSummary() {
     ["Cleanup", summary.cleanup_candidates || 0],
   ];
   summaryEl.innerHTML = `
-    <article class="ai-score-card">
+    <article class="ai-score-card" title="${escapeAttribute(summary.ai_proficiency_summary || "")}">
       <span>このデバイスのAI習熟度</span>
       <strong>${aiScore}<small>/100</small></strong>
       <em>${escapeHtml(aiLevel)}</em>
@@ -121,10 +121,11 @@ function renderMcp() {
       nameCell(server.name, item.path, server.github_urls || item.github_urls),
       conciseText(server.meaning_ja || "", server.name),
       sourceCell(server.install_source || item.source),
+      proficiencyCell(server),
       githubCell(server.github_urls || item.github_urls),
     ]);
   });
-  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明", "入っている場所", "元GitHub"], rows, true) : emptyHtml();
+  panels.mcp.innerHTML = rows.length ? sectionTable("MCP", ["MCP", "シンプルな説明", "入っている場所", "利用度", "元GitHub"], rows, true) : emptyHtml();
 }
 
 function renderFiles() {

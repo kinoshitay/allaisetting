@@ -18,6 +18,8 @@ from typing import Any
 MAX_PREVIEW_CHARS = 16_000
 MAX_SEARCH_DEPTH = 5
 MAX_FILE_BYTES = 512_000
+USAGE_SCAN_MAX_FILES = 260
+USAGE_SCAN_MAX_BYTES = 220_000
 
 SENSITIVE_KEY_RE = re.compile(
     r"(api[_-]?key|token|secret|password|passwd|pwd|cookie|session|credential|private[_-]?key|authorization)",
@@ -63,6 +65,31 @@ AI_PROFICIENCY_RULES = [
     (re.compile(r"\b(example|template|format|schema|output|例|テンプレート|出力)\b", re.IGNORECASE), 10, "出力形式・例"),
     (re.compile(r"\b(context|reference|documentation|docs|README|参照|ドキュメント)\b", re.IGNORECASE), 8, "参照情報"),
 ]
+
+USAGE_FILE_NAMES = {
+    "history.jsonl",
+    "session_index.jsonl",
+    "transcription-history.jsonl",
+}
+
+USAGE_DIR_NAMES = {
+    "sessions",
+    "archived_sessions",
+    "projects",
+}
+
+COMMON_USAGE_TERMS = {
+    "access",
+    "browser",
+    "configure",
+    "documents",
+    "github",
+    "notion",
+    "presentations",
+    "settings",
+    "slack",
+    "spreadsheets",
+}
 
 CONTEXT_FILENAMES = [
     "AGENTS.md",
@@ -492,6 +519,8 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
     skill_files: list[Path] = []
     for root in roots:
         skill_files.extend(iter_limited_files(root, ["SKILL.md"]))
+    skill_names = [path.parent.name for path in sorted(set(skill_files))]
+    usage = scan_usage_evidence(home, skill_names)
     skills: list[dict[str, Any]] = []
     for skill_file in sorted(set(skill_files)):
         content, error = safe_read_text(skill_file)
@@ -499,7 +528,8 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
         source = skill_source(skill_file, home)
         share = skill_share_info(skill_file, source, home)
         security = skill_security_diagnosis(skill_file.parent, content or "")
-        proficiency = skill_ai_proficiency(skill_file.parent, content or "")
+        usage_count = usage["term_counts"].get(title.lower(), 0)
+        proficiency = skill_ai_proficiency(skill_file.parent, content or "", usage_count, source)
         description = ""
         if content:
             match = re.search(r"^description:\s*(.+)$", content, re.MULTILINE)
@@ -524,13 +554,190 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
                 "ai_proficiency_level": proficiency["level"],
                 "ai_proficiency_summary": proficiency["summary"],
                 "ai_proficiency_findings": proficiency["findings"],
+                "usage_count": usage_count,
                 **share,
             }
         )
     return skills
 
 
-def skill_ai_proficiency(skill_dir: Path, primary_text: str) -> dict[str, Any]:
+def usage_roots(home: Path) -> list[Path]:
+    return [
+        home / ".codex",
+        home / ".claude",
+        home / ".agents",
+    ]
+
+
+def iter_usage_files(home: Path) -> list[Path]:
+    files: list[Path] = []
+    for root in usage_roots(home):
+        if not root.exists():
+            continue
+        for current, dirnames, filenames in os.walk(root):
+            current_path = Path(current)
+            rel_parts = current_path.relative_to(root).parts
+            depth = len(rel_parts)
+            dirnames[:] = [
+                dirname
+                for dirname in dirnames
+                if dirname not in {".git", "node_modules", "__pycache__", ".venv", "venv", "plugins", "skills"}
+                and (
+                    dirname in USAGE_DIR_NAMES
+                    or any(part in USAGE_DIR_NAMES for part in rel_parts)
+                    or depth < 2
+                )
+                and depth < 6
+            ]
+            for filename in filenames:
+                path = current_path / filename
+                if (
+                    filename in USAGE_FILE_NAMES
+                    or path.suffix.lower() in {".jsonl", ".log"}
+                    or filename.endswith(".sqlite")
+                    or filename.endswith(".db")
+                ):
+                    files.append(path)
+    return sorted(set(files), key=lambda path: path.stat().st_mtime if path.exists() else 0, reverse=True)[
+        :USAGE_SCAN_MAX_FILES
+    ]
+
+
+def usage_term_variants(name: str) -> list[str]:
+    normalized = name.strip().lower()
+    if not normalized or normalized in {"-", "mcp-config"}:
+        return []
+    if normalized in COMMON_USAGE_TERMS:
+        return []
+    variants = {normalized}
+    variants.add(normalized.replace("_", "-"))
+    variants.add(normalized.replace("-", "_"))
+    variants.add(normalized.replace("-", " "))
+    variants.add(normalized.replace("_", " "))
+    if normalized.endswith("-mcp"):
+        variants.add(normalized[:-4])
+    if normalized.endswith("_mcp"):
+        variants.add(normalized[:-4])
+    if normalized.endswith("-skill"):
+        variants.add(normalized[:-6])
+        variants.add(normalized[:-6].replace("-", " "))
+    if normalized.endswith("_skill"):
+        variants.add(normalized[:-6])
+        variants.add(normalized[:-6].replace("_", " "))
+    return sorted(variant for variant in variants if len(variant) >= 3)
+
+
+def relevant_usage_text_from_line(line: str, path: Path) -> str:
+    try:
+        data = json.loads(line)
+    except json.JSONDecodeError:
+        return line
+    if path.name == "history.jsonl" and isinstance(data, dict):
+        return "\n".join(str(data.get(key, "")) for key in ("display", "project") if data.get(key))
+    if not isinstance(data, dict):
+        return ""
+    payload = data.get("payload")
+    if not isinstance(payload, dict):
+        return ""
+    payload_type = payload.get("type")
+    role = payload.get("role")
+    if role == "developer":
+        return ""
+    if payload_type == "message" and role in {"user", "assistant"}:
+        return stringify_usage_payload(payload.get("content"))
+    if payload_type in {"user_message", "agent_message", "function_call", "mcp_tool_call_end"}:
+        return stringify_usage_payload(payload)
+    return ""
+
+
+def stringify_usage_payload(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "\n".join(stringify_usage_payload(item) for item in value)
+    if isinstance(value, dict):
+        ignored_keys = {
+            "base_instructions",
+            "developer_instructions",
+            "dynamic_tools",
+            "encrypted_content",
+            "model_context_window",
+            "sandbox_policy",
+        }
+        parts: list[str] = []
+        for key, item in value.items():
+            if key in ignored_keys:
+                continue
+            if key in {"text", "message", "name", "arguments", "summary", "content", "type"}:
+                parts.append(stringify_usage_payload(item))
+        return "\n".join(parts)
+    return str(value)
+
+
+def scan_usage_evidence(home: Path, names: list[str]) -> dict[str, Any]:
+    term_map = {name.lower(): usage_term_variants(name) for name in names}
+    term_counts = {name.lower(): 0 for name in names}
+    source_counts = {"codex": 0, "claude": 0, "agents": 0}
+    scanned_files = 0
+    scanned_bytes = 0
+    for path in iter_usage_files(home):
+        try:
+            stat = path.stat()
+            size = min(stat.st_size, USAGE_SCAN_MAX_BYTES)
+            source_key = usage_source_key(path, home)
+            if source_key in source_counts:
+                source_counts[source_key] += 1
+            if path.suffix.lower() in {".sqlite", ".db"}:
+                scanned_files += 1
+                continue
+            raw = path.read_bytes()[:USAGE_SCAN_MAX_BYTES].decode("utf-8", errors="ignore")
+            text = "\n".join(
+                relevant_usage_text_from_line(line, path)
+                for line in raw.splitlines()
+            ).lower()
+            scanned_files += 1
+            scanned_bytes += size
+        except OSError:
+            continue
+        for name_key, variants in term_map.items():
+            if any(variant in text for variant in variants):
+                term_counts[name_key] += 1
+    return {
+        "term_counts": term_counts,
+        "source_counts": source_counts,
+        "scanned_files": scanned_files,
+        "scanned_bytes": scanned_bytes,
+    }
+
+
+def usage_source_key(path: Path, home: Path) -> str:
+    as_text = str(path)
+    if f"{home}/.codex" in as_text:
+        return "codex"
+    if f"{home}/.claude" in as_text:
+        return "claude"
+    if f"{home}/.agents" in as_text:
+        return "agents"
+    return "other"
+
+
+def usage_points(usage_count: int) -> tuple[int, str]:
+    if usage_count >= 20:
+        return 58, "かなり使っている"
+    if usage_count >= 10:
+        return 50, "よく使っている"
+    if usage_count >= 5:
+        return 40, "複数回使っている"
+    if usage_count >= 2:
+        return 30, "利用痕跡あり"
+    if usage_count == 1:
+        return 18, "少し使っている"
+    return 0, "利用痕跡なし"
+
+
+def skill_ai_proficiency(skill_dir: Path, primary_text: str, usage_count: int, source: str) -> dict[str, Any]:
     texts = [primary_text]
     scanned_files = 1
     for path in iter_skill_security_files(skill_dir):
@@ -542,20 +749,28 @@ def skill_ai_proficiency(skill_dir: Path, primary_text: str) -> dict[str, Any]:
             scanned_files += 1
     blob = "\n".join(texts)
     findings: list[str] = []
-    score = 20
+    usage_score, usage_label = usage_points(usage_count)
+    score = 12 + usage_score
+    findings.append(usage_label)
     for pattern, points, label in AI_PROFICIENCY_RULES:
         if pattern.search(blob):
             findings.append(label)
-            score += points
+            score += min(points, 6)
     if len(blob) > 2_000:
         findings.append("情報量あり")
-        score += 8
+        score += 5
     if scanned_files > 3:
         findings.append("補助資料あり")
-        score += 8
+        score += 4
     if scanned_files > 15:
         findings.append("資料が充実")
-        score += 6
+        score += 3
+    if source in {"Codex", "Claude", "Agents shared skills"}:
+        findings.append("自分で使う場所に配置")
+        score += 8
+    elif source in {"Codex plugin cache", "Claude Code plugin cache"}:
+        findings.append("プラグイン由来")
+        score += 3
     score = min(100, score)
     unique_findings = unique_strings(findings)
     return {
@@ -788,6 +1003,34 @@ def scan_mcp(context_files: list[dict[str, Any]], workspace: Path) -> list[dict[
     return items
 
 
+def apply_mcp_usage(mcp_items: list[dict[str, Any]], home: Path) -> dict[str, Any]:
+    names = [
+        server["name"]
+        for item in mcp_items
+        for server in item.get("servers", [])
+        if server.get("name")
+    ]
+    usage = scan_usage_evidence(home, names)
+    for item in mcp_items:
+        for server in item.get("servers", []):
+            usage_count = usage["term_counts"].get(server.get("name", "").lower(), 0)
+            score, level, summary = mcp_ai_proficiency(usage_count, server.get("install_source", item.get("source", "")))
+            server["usage_count"] = usage_count
+            server["ai_proficiency_score"] = score
+            server["ai_proficiency_level"] = level
+            server["ai_proficiency_summary"] = summary
+    return usage
+
+
+def mcp_ai_proficiency(usage_count: int, source: str) -> tuple[int, str, str]:
+    points, usage_label = usage_points(usage_count)
+    score = 10 + points
+    if source in {"Codex", "Claude Code", "Agents shared skills", "Workspace"}:
+        score += 8
+    score = min(100, score)
+    return score, ai_proficiency_level(score), f"{score}点: {usage_label} / 履歴内 {usage_count}件"
+
+
 def mcp_source(path: str | Path, home: Path, workspace: Path) -> str:
     as_text = str(path)
     if f"{home}/.codex" in as_text:
@@ -840,7 +1083,8 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
         "mcp": scan_mcp(context_files, ws),
         "cleanup_candidates": scan_cleanup_candidates(ws),
     }
-    device_ai = device_ai_proficiency(report["skills"])
+    mcp_usage = apply_mcp_usage(report["mcp"], home)
+    device_ai = device_ai_proficiency(report["skills"], report["mcp"], report["context_files"], mcp_usage)
     report["summary"] = {
         "context_files": len(report["context_files"]),
         "skills": len(report["skills"]),
@@ -850,24 +1094,58 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
         "ai_proficiency_score": device_ai["score"],
         "ai_proficiency_level": device_ai["level"],
         "ai_proficiency_summary": device_ai["summary"],
+        "ai_proficiency_findings": device_ai["findings"],
     }
     return report
 
 
-def device_ai_proficiency(skills: list[dict[str, Any]]) -> dict[str, Any]:
-    scores = [
-        int(skill["ai_proficiency_score"])
-        for skill in skills
-        if isinstance(skill.get("ai_proficiency_score"), int)
-    ]
-    if not scores:
-        return {"score": 0, "level": "未評価", "summary": "0点: Skillが検出されませんでした"}
-    score = round(sum(scores) / len(scores))
+def device_ai_proficiency(
+    skills: list[dict[str, Any]],
+    mcp_items: list[dict[str, Any]],
+    context_files: list[dict[str, Any]],
+    mcp_usage: dict[str, Any],
+) -> dict[str, Any]:
+    skill_usage_counts = [int(skill.get("usage_count") or 0) for skill in skills]
+    active_skills = sum(1 for count in skill_usage_counts if count > 0)
+    total_skill_refs = sum(skill_usage_counts)
+    mcp_servers = [server for item in mcp_items for server in item.get("servers", [])]
+    mcp_usage_counts = [int(server.get("usage_count") or 0) for server in mcp_servers]
+    active_mcp = sum(1 for count in mcp_usage_counts if count > 0)
+    total_mcp_refs = sum(mcp_usage_counts)
+    codex_sessions = int(mcp_usage.get("source_counts", {}).get("codex", 0))
+    claude_sessions = int(mcp_usage.get("source_counts", {}).get("claude", 0))
+    shared_skills = sum(1 for skill in skills if skill.get("source") == "Agents shared skills")
+    user_skills = sum(1 for skill in skills if skill.get("source") in {"Codex", "Claude", "Agents shared skills"})
+    skill_ratio = active_skills / len(skills) if skills else 0
+    skill_depth = min(1.0, total_skill_refs / max(1, len(skills) * 8))
+    mcp_ratio = active_mcp / len(mcp_servers) if mcp_servers else 0
+    mcp_depth = min(1.0, total_mcp_refs / max(1, len(mcp_servers) * 6))
+    session_depth = min(1.0, (codex_sessions + claude_sessions) / 140)
+    setup_depth = min(1.0, (user_skills * 2 + shared_skills * 2 + len(context_files)) / 42)
+    skill_component = skill_ratio * 0.65 + skill_depth * 0.35
+    mcp_component = mcp_ratio * 0.70 + mcp_depth * 0.30
+    score = round(
+        100
+        * (
+            skill_component * 0.36
+            + mcp_component * 0.30
+            + session_depth * 0.20
+            + setup_depth * 0.14
+        )
+    )
     level = ai_proficiency_level(score)
+    findings = [
+        f"Skill利用 {active_skills}/{len(skills)}件",
+        f"MCP利用 {active_mcp}/{len(mcp_servers)}件",
+        f"履歴ファイル {mcp_usage.get('scanned_files', 0)}件",
+        f"Codex履歴 {codex_sessions}件",
+        f"Claude履歴 {claude_sessions}件",
+    ]
     return {
         "score": score,
         "level": level,
-        "summary": f"{score}点: {len(scores)}件のSkill平均",
+        "summary": f"{score}点: {', '.join(findings[:3])}",
+        "findings": findings,
     }
 
 
@@ -911,6 +1189,8 @@ def report_to_markdown(report: dict[str, Any]) -> str:
         for server in item.get("servers", []):
             if server.get("meaning_ja"):
                 lines.append(f"  - `{server['name']}` の意味: {server['meaning_ja']}")
+            if server.get("ai_proficiency_summary"):
+                lines.append(f"  - `{server['name']}` 利用度: {server['ai_proficiency_summary']}")
             for url in server.get("github_urls", []):
                 lines.append(f"  - `{server['name']}` GitHub: {url}")
     lines.extend(["", "## Context And Agent Files"])
