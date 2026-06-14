@@ -1095,6 +1095,7 @@ def run_scan(workspace: str | Path | None = None, include_previews: bool = True)
         "ai_proficiency_level": device_ai["level"],
         "ai_proficiency_summary": device_ai["summary"],
         "ai_proficiency_findings": device_ai["findings"],
+        "ai_proficiency_components": device_ai["components"],
     }
     return report
 
@@ -1124,6 +1125,36 @@ def device_ai_proficiency(
     setup_depth = min(1.0, (user_skills * 2 + shared_skills * 2 + len(context_files)) / 42)
     skill_component = skill_ratio * 0.65 + skill_depth * 0.35
     mcp_component = mcp_ratio * 0.70 + mcp_depth * 0.30
+    components = [
+        {
+            "name": "Skill利用",
+            "weight": 36,
+            "score": round(skill_component * 100),
+            "detail": f"{active_skills}/{len(skills)}件に利用痕跡、参照合計 {total_skill_refs}件",
+            "how_to_improve": "未使用のSkillを実タスクで使う、よく使う作業を専用Skill化する、共有Skillへ移してCodex/Claude両方で使う。",
+        },
+        {
+            "name": "MCP利用",
+            "weight": 30,
+            "score": round(mcp_component * 100),
+            "detail": f"{active_mcp}/{len(mcp_servers)}件に利用痕跡、参照合計 {total_mcp_refs}件",
+            "how_to_improve": "設定済みMCPを実際の調査・更新・連携タスクで使う。使わないMCPは整理し、主要MCPの接続確認を行う。",
+        },
+        {
+            "name": "利用履歴の厚み",
+            "weight": 20,
+            "score": round(session_depth * 100),
+            "detail": f"Codex履歴 {codex_sessions}件、Claude履歴 {claude_sessions}件",
+            "how_to_improve": "日常業務でCodex/Claudeを継続利用し、調査、実装、ドキュメント化、連携操作までAIに任せる範囲を増やす。",
+        },
+        {
+            "name": "環境整備",
+            "weight": 14,
+            "score": round(setup_depth * 100),
+            "detail": f"ユーザー/共有Skill {user_skills}件、共有Skill {shared_skills}件、設定ファイル {len(context_files)}件",
+            "how_to_improve": "AGENTS.md/CLAUDE.mdを整える。よく使うSkillを共有化し、不要な重複や古い設定を整理する。",
+        },
+    ]
     score = round(
         100
         * (
@@ -1146,6 +1177,7 @@ def device_ai_proficiency(
         "level": level,
         "summary": f"{score}点: {', '.join(findings[:3])}",
         "findings": findings,
+        "components": components,
     }
 
 
@@ -1209,6 +1241,126 @@ def report_to_markdown(report: dict[str, Any]) -> str:
         if file_item.get("error"):
             lines.append(f"- Error: {file_item['error']}")
         lines.append("")
+    return "\n".join(lines)
+
+
+def ai_score_report_to_markdown(report: dict[str, Any]) -> str:
+    summary = report.get("summary", {})
+    components = summary.get("ai_proficiency_components", [])
+    skills = report.get("skills", [])
+    mcp_servers = [
+        server
+        for item in report.get("mcp", [])
+        for server in item.get("servers", [])
+    ]
+    low_skills = sorted(
+        skills,
+        key=lambda skill: (int(skill.get("usage_count") or 0), int(skill.get("ai_proficiency_score") or 0), skill.get("name", "")),
+    )[:12]
+    low_mcp = sorted(
+        mcp_servers,
+        key=lambda server: (int(server.get("usage_count") or 0), int(server.get("ai_proficiency_score") or 0), server.get("name", "")),
+    )[:12]
+    top_skills = sorted(
+        skills,
+        key=lambda skill: (int(skill.get("usage_count") or 0), int(skill.get("ai_proficiency_score") or 0)),
+        reverse=True,
+    )[:8]
+    top_mcp = sorted(
+        mcp_servers,
+        key=lambda server: (int(server.get("usage_count") or 0), int(server.get("ai_proficiency_score") or 0)),
+        reverse=True,
+    )[:8]
+    lines = [
+        "# AI習熟度スコア レポート",
+        "",
+        f"- 生成日時: `{report.get('generated_at')}`",
+        f"- デバイス: `{report.get('settings', {}).get('device', {}).get('hostname')}`",
+        f"- ワークスペース: `{report.get('settings', {}).get('device', {}).get('cwd')}`",
+        "",
+        "## 総合評価",
+        "",
+        f"- スコア: **{summary.get('ai_proficiency_score', 0)}/100**",
+        f"- レベル: **{summary.get('ai_proficiency_level', '未評価')}**",
+        f"- 根拠: {summary.get('ai_proficiency_summary', '')}",
+        "",
+        "## 点数の構成要素",
+        "",
+        "| 構成要素 | 重み | 現在の達成度 | 現在の状態 | 点数を上げる方法 |",
+        "|---|---:|---:|---|---|",
+    ]
+    for item in components:
+        lines.append(
+            "| {name} | {weight}% | {score}/100 | {detail} | {how} |".format(
+                name=item.get("name", ""),
+                weight=item.get("weight", 0),
+                score=item.get("score", 0),
+                detail=str(item.get("detail", "")).replace("|", "\\|"),
+                how=str(item.get("how_to_improve", "")).replace("|", "\\|"),
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "## 優先して点数を上げる方法",
+            "",
+            "1. 利用痕跡が0件のSkillを整理し、必要なものだけ実タスクで使う。",
+            "2. よく使う作業をSkill化し、`~/.agents/skills` に共有してClaude Code / Codexの両方で使えるようにする。",
+            "3. 設定済みMCPのうち利用痕跡が少ないものを接続確認し、実際の業務タスクで使う。",
+            "4. AGENTS.md / CLAUDE.md に定型ワークフロー、使うMCP、出力形式を明記する。",
+            "5. 不要なSkill/MCPを減らして、使うものが明確な環境にする。",
+            "",
+            "## 利用が多いSkill",
+            "",
+            "| Skill | 利用痕跡 | AI習熟度 | 入っている場所 |",
+            "|---|---:|---:|---|",
+        ]
+    )
+    for skill in top_skills:
+        lines.append(
+            f"| `{skill.get('name')}` | {skill.get('usage_count', 0)} | {skill.get('ai_proficiency_score', 0)} | {skill.get('source', '')} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## 改善候補Skill",
+            "",
+            "| Skill | 利用痕跡 | AI習熟度 | 改善案 |",
+            "|---|---:|---:|---|",
+        ]
+    )
+    for skill in low_skills:
+        suggestion = "不要なら削除候補。必要なら実タスクで使うか、説明・手順・検証条件を追記する。"
+        lines.append(
+            f"| `{skill.get('name')}` | {skill.get('usage_count', 0)} | {skill.get('ai_proficiency_score', 0)} | {suggestion} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## 利用が多いMCP",
+            "",
+            "| MCP | 利用痕跡 | 利用度 | 入っている場所 |",
+            "|---|---:|---:|---|",
+        ]
+    )
+    for server in top_mcp:
+        lines.append(
+            f"| `{server.get('name')}` | {server.get('usage_count', 0)} | {server.get('ai_proficiency_score', 0)} | {server.get('install_source', '')} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## 改善候補MCP",
+            "",
+            "| MCP | 利用痕跡 | 利用度 | 改善案 |",
+            "|---|---:|---:|---|",
+        ]
+    )
+    for server in low_mcp:
+        suggestion = "接続確認して実タスクで使う。使わないなら設定整理の候補にする。"
+        lines.append(
+            f"| `{server.get('name')}` | {server.get('usage_count', 0)} | {server.get('ai_proficiency_score', 0)} | {suggestion} |"
+        )
     return "\n".join(lines)
 
 

@@ -8,7 +8,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from inventory_scanner import report_to_html, report_to_markdown, run_scan
+from inventory_scanner import ai_score_report_to_markdown, report_to_html, report_to_markdown, run_scan
 
 
 ROOT = Path(__file__).resolve().parent
@@ -32,6 +32,8 @@ class InventoryHandler(SimpleHTTPRequestHandler):
             return self.handle_export("markdown")
         if parsed.path == "/export.html":
             return self.handle_export("html")
+        if parsed.path == "/ai-score-report.md":
+            return self.handle_ai_score_report()
         return super().do_GET()
 
     def do_POST(self) -> None:
@@ -59,6 +61,11 @@ class InventoryHandler(SimpleHTTPRequestHandler):
         else:
             body = report_to_html(report)
             self.send_bytes(body.encode("utf-8"), "text/html; charset=utf-8")
+
+    def handle_ai_score_report(self) -> None:
+        report = run_scan(ROOT, include_previews=True)
+        body = ai_score_report_to_markdown(report)
+        self.send_bytes(body.encode("utf-8"), "text/markdown; charset=utf-8")
 
     def handle_quarantine(self) -> None:
         try:
