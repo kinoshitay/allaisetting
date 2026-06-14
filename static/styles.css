@@ -192,7 +192,8 @@ input[type="search"] {
 table {
   border-collapse: collapse;
   min-width: 0;
-  width: 100%;
+  min-width: 100%;
+  width: max-content;
 }
 
 th,
@@ -201,6 +202,7 @@ td {
   padding: 10px 0;
   text-align: left;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 th {
@@ -239,7 +241,7 @@ td code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
   padding: 2px 6px;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .row-number {
@@ -258,6 +260,7 @@ tr:last-child td {
   color: var(--muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .meaning {
@@ -334,13 +337,6 @@ tr:last-child td {
   background: #fff0f0;
   border-color: #efc4c4;
   color: #9f2a2a;
-}
-
-.score-level {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 3px;
-  white-space: nowrap;
 }
 
 .status-label {

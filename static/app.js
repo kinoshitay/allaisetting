@@ -222,7 +222,7 @@ function securityCell(skill) {
   const score = Number.isFinite(skill.security_score) ? skill.security_score : 0;
   const level = skill.security_level || "要確認";
   const className = score >= 90 ? "good" : score >= 70 ? "warn" : "risk";
-  return `<span class="score-label ${className}" title="${escapeAttribute(skill.security_summary || "")}">${score}点</span><div class="score-level">${escapeHtml(level)}</div>`;
+  return `<span class="score-label ${className}" title="${escapeAttribute(skill.security_summary || "")}">${score}点 ${escapeHtml(level)}</span>`;
 }
 
 function shareCell(skill) {
