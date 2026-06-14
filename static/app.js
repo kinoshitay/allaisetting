@@ -87,13 +87,14 @@ function renderSettings() {
 }
 
 function renderSkills() {
-  const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.security_summary || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
-  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["No.", "Skill", "シンプルな説明", "入っている場所", "診断", "元GitHub", "共有"], skills.map((skill, index) => [
+  const skills = filterItems(state.report.skills || [], (skill) => `${skill.name} ${skill.path} ${skill.source} ${skill.description} ${skill.meaning_ja || ""} ${skill.security_summary || ""} ${skill.ai_proficiency_summary || ""} ${skill.share_status || ""} ${skill.share_reason || ""} ${(skill.github_urls || []).join(" ")}`);
+  panels.skills.innerHTML = skills.length ? sectionTable("Skills", ["No.", "Skill", "シンプルな説明", "入っている場所", "診断", "AI習熟度", "元GitHub", "共有"], skills.map((skill, index) => [
     `<span class="row-number">${index + 1}</span>`,
     nameCell(skill.name, skill.path, skill.github_urls),
     conciseText(skill.meaning_ja || "", skill.name),
     sourceCell(skill.source),
     securityCell(skill),
+    proficiencyCell(skill),
     githubCell(skill.github_urls),
     shareCell(skill),
   ]), true) : emptyHtml();
@@ -223,6 +224,13 @@ function securityCell(skill) {
   const level = skill.security_level || "要確認";
   const className = score >= 90 ? "good" : score >= 70 ? "warn" : "risk";
   return `<span class="score-label ${className}" title="${escapeAttribute(skill.security_summary || "")}">${score}点 ${escapeHtml(level)}</span>`;
+}
+
+function proficiencyCell(skill) {
+  const score = Number.isFinite(skill.ai_proficiency_score) ? skill.ai_proficiency_score : 0;
+  const level = skill.ai_proficiency_level || "薄い";
+  const className = score >= 90 ? "good" : score >= 75 ? "blue" : score >= 55 ? "warn" : "risk";
+  return `<span class="score-label ${className}" title="${escapeAttribute(skill.ai_proficiency_summary || "")}">${score}点 ${escapeHtml(level)}</span>`;
 }
 
 function shareCell(skill) {

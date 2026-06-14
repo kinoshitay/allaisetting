@@ -54,6 +54,16 @@ SKILL_SECURITY_SCAN_EXTENSIONS = {
     ".sh",
 }
 
+AI_PROFICIENCY_RULES = [
+    (re.compile(r"##\s+|#\s+", re.IGNORECASE), 8, "構成化"),
+    (re.compile(r"\b(use when|trigger|workflow|steps?|procedure|手順|条件|使う|利用)\b", re.IGNORECASE), 14, "利用条件・手順"),
+    (re.compile(r"\b(tool|mcp|api|cli|command|script|browser|github|notion|slack|drive|ツール|コマンド|連携)\b", re.IGNORECASE), 16, "ツール連携"),
+    (re.compile(r"\b(verify|test|check|validate|確認|検証|テスト)\b", re.IGNORECASE), 12, "検証手順"),
+    (re.compile(r"\b(do not|avoid|must|never|important|注意|禁止|必ず)\b", re.IGNORECASE), 10, "制約・注意"),
+    (re.compile(r"\b(example|template|format|schema|output|例|テンプレート|出力)\b", re.IGNORECASE), 10, "出力形式・例"),
+    (re.compile(r"\b(context|reference|documentation|docs|README|参照|ドキュメント)\b", re.IGNORECASE), 8, "参照情報"),
+]
+
 CONTEXT_FILENAMES = [
     "AGENTS.md",
     "CLAUDE.md",
@@ -489,6 +499,7 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
         source = skill_source(skill_file, home)
         share = skill_share_info(skill_file, source, home)
         security = skill_security_diagnosis(skill_file.parent, content or "")
+        proficiency = skill_ai_proficiency(skill_file.parent, content or "")
         description = ""
         if content:
             match = re.search(r"^description:\s*(.+)$", content, re.MULTILINE)
@@ -509,10 +520,66 @@ def scan_skills(home: Path) -> list[dict[str, Any]]:
                 "security_level": security["level"],
                 "security_summary": security["summary"],
                 "security_findings": security["findings"],
+                "ai_proficiency_score": proficiency["score"],
+                "ai_proficiency_level": proficiency["level"],
+                "ai_proficiency_summary": proficiency["summary"],
+                "ai_proficiency_findings": proficiency["findings"],
                 **share,
             }
         )
     return skills
+
+
+def skill_ai_proficiency(skill_dir: Path, primary_text: str) -> dict[str, Any]:
+    texts = [primary_text]
+    scanned_files = 1
+    for path in iter_skill_security_files(skill_dir):
+        if path.name == "SKILL.md":
+            continue
+        text, _ = safe_read_text(path)
+        if text:
+            texts.append(text)
+            scanned_files += 1
+    blob = "\n".join(texts)
+    findings: list[str] = []
+    score = 20
+    for pattern, points, label in AI_PROFICIENCY_RULES:
+        if pattern.search(blob):
+            findings.append(label)
+            score += points
+    if len(blob) > 2_000:
+        findings.append("情報量あり")
+        score += 8
+    if scanned_files > 3:
+        findings.append("補助資料あり")
+        score += 8
+    if scanned_files > 15:
+        findings.append("資料が充実")
+        score += 6
+    score = min(100, score)
+    unique_findings = unique_strings(findings)
+    return {
+        "score": score,
+        "level": ai_proficiency_level(score),
+        "summary": ai_proficiency_summary(score, unique_findings),
+        "findings": unique_findings,
+    }
+
+
+def ai_proficiency_level(score: int) -> str:
+    if score >= 90:
+        return "熟練"
+    if score >= 75:
+        return "実用"
+    if score >= 55:
+        return "基礎"
+    return "薄い"
+
+
+def ai_proficiency_summary(score: int, findings: list[str]) -> str:
+    if not findings:
+        return f"{score}点: 情報少なめ"
+    return f"{score}点: {', '.join(findings[:3])}"
 
 
 def skill_security_diagnosis(skill_dir: Path, primary_text: str) -> dict[str, Any]:
@@ -806,6 +873,8 @@ def report_to_markdown(report: dict[str, Any]) -> str:
             lines.append(f"  - 意味: {skill['meaning_ja']}")
         if skill.get("security_summary"):
             lines.append(f"  - セキュリティ診断: {skill['security_summary']}")
+        if skill.get("ai_proficiency_summary"):
+            lines.append(f"  - AI習熟度: {skill['ai_proficiency_summary']}")
         for url in skill.get("github_urls", []):
             lines.append(f"  - GitHub: {url}")
     lines.extend(["", "## MCP"])

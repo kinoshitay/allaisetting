@@ -333,6 +333,12 @@ tr:last-child td {
   color: var(--warn);
 }
 
+.score-label.blue {
+  background: #eef7fb;
+  border-color: #bfe0ed;
+  color: var(--accent-strong);
+}
+
 .score-label.risk {
   background: #fff0f0;
   border-color: #efc4c4;
