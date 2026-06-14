@@ -223,10 +223,34 @@ input[type="search"] {
 
 .table-wrap {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 8px;
+  scrollbar-color: #a9bfcb #edf1f4;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.table-wrap::-webkit-scrollbar {
+  height: 12px;
+}
+
+.table-wrap::-webkit-scrollbar-track {
+  background: #edf1f4;
+  border-radius: 999px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+  background: #a9bfcb;
+  border-radius: 999px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #7fa2b2;
 }
 
 table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   min-width: 0;
   min-width: 100%;
   width: max-content;
@@ -262,8 +286,38 @@ td:first-child {
 }
 
 .skills-table td:nth-child(2) {
-  width: 20%;
+  min-width: 150px;
   padding-right: 18px;
+}
+
+.skills-table th:first-child,
+.skills-table td:first-child,
+.skills-table th:nth-child(2),
+.skills-table td:nth-child(2) {
+  background: var(--bg);
+  position: sticky;
+}
+
+.skills-table th:first-child,
+.skills-table td:first-child {
+  left: 0;
+  min-width: 42px;
+  width: 42px;
+  z-index: 4;
+}
+
+.skills-table th:nth-child(2),
+.skills-table td:nth-child(2) {
+  box-shadow: 10px 0 14px -14px rgba(23, 32, 42, 0.45);
+  left: 42px;
+  max-width: 180px;
+  min-width: 150px;
+  z-index: 3;
+}
+
+.skills-table th:first-child,
+.skills-table th:nth-child(2) {
+  z-index: 5;
 }
 
 td:last-child {
