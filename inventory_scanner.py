@@ -1364,6 +1364,317 @@ def ai_score_report_to_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def ai_score_report_to_html(report: dict[str, Any]) -> str:
+    summary = report.get("summary", {})
+    components = summary.get("ai_proficiency_components", [])
+    skills = report.get("skills", [])
+    mcp_servers = [
+        server
+        for item in report.get("mcp", [])
+        for server in item.get("servers", [])
+    ]
+    low_skills = sorted(
+        skills,
+        key=lambda skill: (int(skill.get("usage_count") or 0), int(skill.get("ai_proficiency_score") or 0), skill.get("name", "")),
+    )[:12]
+    low_mcp = sorted(
+        mcp_servers,
+        key=lambda server: (int(server.get("usage_count") or 0), int(server.get("ai_proficiency_score") or 0), server.get("name", "")),
+    )[:12]
+    top_skills = sorted(
+        skills,
+        key=lambda skill: (int(skill.get("usage_count") or 0), int(skill.get("ai_proficiency_score") or 0)),
+        reverse=True,
+    )[:8]
+    top_mcp = sorted(
+        mcp_servers,
+        key=lambda server: (int(server.get("usage_count") or 0), int(server.get("ai_proficiency_score") or 0)),
+        reverse=True,
+    )[:8]
+    score = int(summary.get("ai_proficiency_score") or 0)
+    level = summary.get("ai_proficiency_level", "未評価")
+    component_rows = "".join(
+        f"""
+          <tr>
+            <td><strong>{html.escape(str(item.get("name", "")))}</strong></td>
+            <td class="number">{int(item.get("weight") or 0)}%</td>
+            <td class="number">{int(item.get("score") or 0)}/100</td>
+            <td>{html.escape(str(item.get("detail", "")))}</td>
+            <td>{html.escape(str(item.get("how_to_improve", "")))}</td>
+          </tr>
+        """
+        for item in components
+    )
+    top_skill_rows = "".join(
+        f"""
+          <tr>
+            <td><code>{html.escape(str(skill.get("name", "")))}</code></td>
+            <td class="number">{int(skill.get("usage_count") or 0)}</td>
+            <td class="number">{int(skill.get("ai_proficiency_score") or 0)}</td>
+            <td>{html.escape(str(skill.get("source", "")))}</td>
+          </tr>
+        """
+        for skill in top_skills
+    )
+    low_skill_rows = "".join(
+        f"""
+          <tr>
+            <td><code>{html.escape(str(skill.get("name", "")))}</code></td>
+            <td class="number">{int(skill.get("usage_count") or 0)}</td>
+            <td class="number">{int(skill.get("ai_proficiency_score") or 0)}</td>
+            <td>不要なら整理候補。必要なら実タスクで使うか、説明・手順・検証条件を追記する。</td>
+          </tr>
+        """
+        for skill in low_skills
+    )
+    top_mcp_rows = "".join(
+        f"""
+          <tr>
+            <td><code>{html.escape(str(server.get("name", "")))}</code></td>
+            <td class="number">{int(server.get("usage_count") or 0)}</td>
+            <td class="number">{int(server.get("ai_proficiency_score") or 0)}</td>
+            <td>{html.escape(str(server.get("install_source", "")))}</td>
+          </tr>
+        """
+        for server in top_mcp
+    )
+    low_mcp_rows = "".join(
+        f"""
+          <tr>
+            <td><code>{html.escape(str(server.get("name", "")))}</code></td>
+            <td class="number">{int(server.get("usage_count") or 0)}</td>
+            <td class="number">{int(server.get("ai_proficiency_score") or 0)}</td>
+            <td>接続確認して実タスクで使う。使わないなら設定整理の候補にする。</td>
+          </tr>
+        """
+        for server in low_mcp
+    )
+    return f"""<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Report - All AI Setting</title>
+  <style>
+    :root {{
+      --bg: #ffffff;
+      --line: #e4e8ed;
+      --text: #17202a;
+      --muted: #627080;
+      --accent: #176b87;
+      --accent-soft: #eef7fa;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.65;
+      margin: 0;
+    }}
+    header {{
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 20px;
+      justify-content: space-between;
+      padding: 20px 32px;
+    }}
+    main {{
+      margin: 0 auto;
+      max-width: 1080px;
+      padding: 24px 32px 56px;
+    }}
+    h1 {{
+      font-size: 28px;
+      line-height: 1.2;
+      margin: 0;
+    }}
+    h2 {{
+      border-bottom: 1px solid var(--line);
+      font-size: 18px;
+      margin: 28px 0 12px;
+      padding-bottom: 8px;
+    }}
+    a {{
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      min-height: 40px;
+      padding: 8px 13px;
+      text-decoration: none;
+    }}
+    a:hover {{ border-color: var(--accent); }}
+    .eyebrow {{
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0 0 4px;
+      text-transform: uppercase;
+    }}
+    .score {{
+      align-items: baseline;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 14px;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      padding: 8px 0 22px;
+    }}
+    .score span {{
+      color: var(--muted);
+      font-weight: 700;
+    }}
+    .score strong {{
+      color: var(--accent);
+      font-size: 56px;
+      line-height: 1;
+    }}
+    .score small {{
+      color: var(--muted);
+      font-size: 18px;
+    }}
+    .score em {{
+      font-size: 20px;
+      font-style: normal;
+      font-weight: 700;
+    }}
+    .summary {{
+      color: var(--muted);
+      margin: 14px 0 0;
+    }}
+    .table-wrap {{
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-color: #a9bfcb #edf1f4;
+      scrollbar-width: thin;
+    }}
+    table {{
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 760px;
+      width: 100%;
+    }}
+    th, td {{
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px 10px 0;
+      text-align: left;
+      vertical-align: top;
+    }}
+    th {{
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }}
+    td.number {{
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
+    }}
+    code {{
+      background: #eeeeee;
+      border-radius: 5px;
+      color: #20252b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      padding: 2px 6px;
+      white-space: nowrap;
+    }}
+    ol {{
+      margin: 0;
+      padding-left: 22px;
+    }}
+    li {{ margin: 7px 0; }}
+    .meta {{
+      color: var(--muted);
+      margin: 0;
+    }}
+    @media (max-width: 760px) {{
+      header {{
+        align-items: stretch;
+        flex-direction: column;
+        padding: 20px;
+      }}
+      main {{ padding: 18px; }}
+      .score {{
+        align-items: start;
+        grid-template-columns: 1fr;
+      }}
+      .score strong {{ font-size: 44px; }}
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">All AI Setting</p>
+      <h1>AI習熟度スコア レポート</h1>
+      <p class="meta">生成日時: {html.escape(str(report.get("generated_at", "")))}</p>
+    </div>
+    <a href="/">戻る</a>
+  </header>
+  <main>
+    <section class="score">
+      <span>このデバイスのAI習熟度</span>
+      <strong>{score}<small>/100</small></strong>
+      <em>{html.escape(str(level))}</em>
+    </section>
+    <p class="summary">{html.escape(str(summary.get("ai_proficiency_summary", "")))}</p>
+
+    <h2>点数の構成要素</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>構成要素</th><th>重み</th><th>達成度</th><th>現在の状態</th><th>点数を上げる方法</th></tr></thead>
+        <tbody>{component_rows}</tbody>
+      </table>
+    </div>
+
+    <h2>優先して点数を上げる方法</h2>
+    <ol>
+      <li>利用痕跡が0件のSkillを整理し、必要なものだけ実タスクで使う。</li>
+      <li>よく使う作業をSkill化し、<code>~/.agents/skills</code> に共有してClaude Code / Codexの両方で使えるようにする。</li>
+      <li>設定済みMCPのうち利用痕跡が少ないものを接続確認し、実際の業務タスクで使う。</li>
+      <li>AGENTS.md / CLAUDE.md に定型ワークフロー、使うMCP、出力形式を明記する。</li>
+      <li>不要なSkill/MCPを減らして、使うものが明確な環境にする。</li>
+    </ol>
+
+    <h2>利用が多いSkill</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>利用痕跡</th><th>AI習熟度</th><th>入っている場所</th></tr></thead>
+        <tbody>{top_skill_rows}</tbody>
+      </table>
+    </div>
+
+    <h2>改善候補Skill</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>利用痕跡</th><th>AI習熟度</th><th>改善案</th></tr></thead>
+        <tbody>{low_skill_rows}</tbody>
+      </table>
+    </div>
+
+    <h2>利用が多いMCP</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>MCP</th><th>利用痕跡</th><th>利用度</th><th>入っている場所</th></tr></thead>
+        <tbody>{top_mcp_rows}</tbody>
+      </table>
+    </div>
+
+    <h2>改善候補MCP</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>MCP</th><th>利用痕跡</th><th>利用度</th><th>改善案</th></tr></thead>
+        <tbody>{low_mcp_rows}</tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>"""
+
+
 def report_to_html(report: dict[str, Any]) -> str:
     markdown = report_to_markdown(report)
     escaped = html.escape(markdown)
